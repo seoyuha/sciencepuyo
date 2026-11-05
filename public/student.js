@@ -136,25 +136,43 @@
     if (cur() === 'sChal') renderChal();
     if (cur() === 'sResult') renderResultBar();
   }
+  /* ---------- 1인용 AI 난이도 (학생이 골라요) ---------- */
+  const LV = [['easy', '🐣', '쉬움', 'AI가 천천히 · 3색'], ['normal', '🙂', '보통', '이기면 +20점'], ['hard', '🔥', '어려움', 'AI가 빨라요 · 4색']];
+  const lvName = k => (LV.find(x => x[0] === k) || [])[2] || '';
+  function levelButtons(compact) {
+    return LV.map(([k, ic, nm, ds]) => `<button class="lvBtn ${k} ${ME && ME.level === k ? 'on' : ''}" data-lv="${k}"><b>${ic} ${nm}</b>${compact ? '' : `<small>${ds}</small>`}</button>`).join('');
+  }
+  function bindLevel(root) {
+    root.querySelectorAll('[data-lv]').forEach(b => b.onclick = async () => {
+      const r = await emit('setLevel', { level: b.dataset.lv }); if (r.err) return toast(r.err);
+      ME.level = r.level; saved.level = r.level; store(); SFX.star();
+      root.querySelectorAll('[data-lv]').forEach(x => x.classList.toggle('on', x.dataset.lv === r.level));
+      toast(`${lvName(r.level)} 난이도로 AI와 대결해요!`, 1600);
+      if (cur() === 'sLobby') renderLobby();
+    });
+  }
   function rankLine(r) { return r ? `우리 반 ${r.cls}등 · ${r.points}점${r.grade && r.gradeOf > r.clsOf ? ` · 학년 ${r.grade}등` : ''}` : '첫 경기를 하면 순위가 생겨요'; }
   function renderLobby() {
     if (!ME) return;
     const three = ME.mode === 3, solo = ME.mode === 1;
     Stage.setBg($('#sLobby'), three ? 's_lobby_3p' : 's_lobby_1v1');
     const tg = $('#lbTag'); tg.style.cssText = three ? 'left:650px;top:208px;width:370px;height:60px' : 'left:700px;top:208px;width:272px;height:60px';
-    tg.textContent = (three ? '3인전' : solo ? 'AI 대결' : '2인전') + (ME.rankMode ? ' · 랭킹전' : ME.matchMin === 0 ? ' · 데스매치' : '');
+    tg.textContent = (three ? '3인전' : solo ? 'AI 대결' + (ME.level ? ' · ' + lvName(ME.level) : '') : '2인전') + (ME.rankMode ? ' · 랭킹전' : ME.matchMin === 0 ? ' · 데스매치' : '');
     tg.style.fontSize = tg.textContent.length > 4 ? (three ? '32px' : '26px') : '36px';
     const slots = three ? [[110, 312, 505, 410], [642, 312, 1030, 410], [1170, 312, 1565, 410]] : [[140, 296, 650, 418], [1020, 296, 1532, 418]];
     const me = `<div class="slot" style="${box(...slots[0])}"><b><img src="${J.src(J.avatarColor(ME.name))}" alt="">${esc(ME.name)}</b><small>${esc(rankLine(ME.myRank))}</small></div>`;
     const waits = solo ? `<div class="slot wait" style="${box(...slots[1])}"><b><img src="${J.src(6, 'happy')}" alt="">🤖 AI 친구</b><small>${ME.running ? '곧 AI와 대결해요' : '선생님이 시작하면 대결해요'}</small></div>`
       : slots.slice(1).map((s, i) => `<div class="slot wait" style="${box(...s)}"><b><img src="${J.src([3, 4][i], 'happy')}" alt="">${ME.running ? '찾는 중…' : '자동 배정'}</b><small>${ME.running ? '곧 상대가 정해져요' : '선생님이 정해 줘요'}</small></div>`).join('');
-    $('#lbSlots').innerHTML = me + waits;
+    $('#lbSlots').innerHTML = me + (solo ? '' : waits);
+    const lp = $('#lbLevel'); lp.style.display = solo ? '' : 'none';
+    if (solo) { lp.innerHTML = `<div class="lvT">🤖 AI 친구 난이도를 골라요</div><div class="lvBtns">${levelButtons(false)}</div>`; bindLevel(lp); }
     $('#lbUnits').textContent = unitsLabel(ME.units); $('#lbUnits').style.fontSize = $('#lbUnits').textContent.length > 12 ? '22px' : '28px';
     $('#lbTime').textContent = ME.matchMin ? `${ME.matchMin}분 경기` : '데스매치 (끝까지)';
     const run = !!ME.running, rk = !!ME.rankMode;
     $('#lbMsgCover').style.display = run || rk ? '' : 'none'; $('#lbMsg').style.display = run || rk ? '' : 'none';
     if (rk) $('#lbMsg').textContent = '⚔️ 랭킹전! 「우리 반 랭킹」을 눌러 도전하세요';
-    else if (run) $('#lbMsg').textContent = ME.mode === 1 ? 'AI 친구와 대결을 준비하고 있어요!' : '상대를 찾고 있어요… 곧 대결이 시작돼요!';
+    else if (run) $('#lbMsg').textContent = ME.mode === 1 ? (ME.level ? 'AI 친구와 대결을 준비하고 있어요!' : '👆 난이도를 누르면 바로 대결이 시작돼요!') : '상대를 찾고 있어요… 곧 대결이 시작돼요!';
+    if (ME.mode === 1 && !run && !rk) { $('#lbMsgCover').style.display = ''; $('#lbMsg').style.display = ''; $('#lbMsg').textContent = ME.level ? `${lvName(ME.level)}으로 골랐어요 · 선생님이 시작하면 대결해요` : '👆 먼저 난이도를 골라 두세요'; }
   }
   $('#lbHow').onclick = () => openHow('sLobby');
   $('#lbRank').onclick = () => ME && ME.rankMode ? openChal() : openRanking('sLobby');
@@ -226,6 +244,8 @@
     const p = meP();
     if (p) { G.stars = p.stars; G.score = Math.max(G.score, p.score); if (first && p.board && p.board !== E.toStr(E.empty())) G.board = E.fromStr(p.board); }
     if (modeChanged) { Stage.setBg($('#sGame'), v.mode === 3 ? 's_match_3p' : 's_match_1v1'); buildOpps(true); }
+    if (first) $('#sGame').classList.toggle('easy', !!(ME && ME.easy));
+    if (first && v.solo && v.level) toast(`${{ easy: '🐣 쉬움', normal: '🙂 보통', hard: '🔥 어려움' }[v.level] || ''} AI와 대결!`, 1800);
     G.death = !!v.death; G.elapsed = v.elapsed || 0;
     const lb = v.ranked ? ['lb_rank', '랭킹전'] : v.death ? ['lb_death', '데스매치'] : v.mode === 3 ? ['lb_3p', '3인전'] : v.solo ? ['lb_ai', 'AI 대결'] : ['lb_2p', '2인전'];
     if (!$('#gLbl').src.endsWith(lb[0] + '.webp')) { $('#gLbl').src = `img/${lb[0]}.webp`; $('#gLbl').alt = lb[1]; }
@@ -644,6 +664,9 @@
       $('#rToday').insertAdjacentHTML('afterbegin', `<div class="lt" style="color:#b0006a">⚔️ 랭킹전 ${ch ? (won ? `도전 성공! ${esc(r.ranked.dName)}을(를) 이겼어요 +10` : '도전 실패 · 다음에 다시 도전!') : (won ? '방어 성공! +5' : `${esc(r.ranked.cName)}의 도전에 졌어요`)}</div>`);
       if (won) setTimeout(() => banner(imgBanner(ch ? 'chal_ok' : 'def_ok', 'rp_'), 3000), 500);
     }
+    const rl = $('#rLevel'); const soloRes = !!(ME && ME.mode === 1 && !r.practice);
+    rl.style.display = soloRes ? '' : 'none';
+    if (soloRes) { rl.innerHTML = `<span class="lvL">다음 판 난이도</span>${levelButtons(true)}`; bindLevel(rl); }
     show('sResult'); renderResultBar();
     clearInterval(resTimer);
     resTimer = setInterval(renderResultBar, 500);

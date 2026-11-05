@@ -175,6 +175,14 @@ function hintFor(q, tries, wrongIdx) {
 }
 
 /* ===================== 경기 ===================== */
+// AI 난이도 — 1인용(AI)에서는 학생이 고르고, 2인·3인전에서 짝 대신 들어오는 AI는 반 설정(쉬운 모드면 쉬움, 아니면 보통)을 따라요
+// curse: 안개·뒤죽박죽 사용 · solve: AI가 문제를 푸는 시간(최소, 더하는 폭) · right: AI 첫 시도 정답률 · skill: 뿌요 쌓는 실력 배율
+// colors: 뿌요 색 수(null이면 반 설정) · win: 1인용에서 이겼을 때 순위 점수 (어려울수록 더 많이)
+const LEVELS = {
+  easy: { name: '쉬움', icon: '🐣', curse: false, solve: [7000, 8000], right: 0.6, skill: 0.6, place: [1600, 1200], colors: 3, win: 14 },
+  normal: { name: '보통', icon: '🙂', curse: true, solve: [5000, 7000], right: 0.68, skill: 1, place: [900, 1200], colors: null, win: 20 },
+  hard: { name: '어려움', icon: '🔥', curse: true, solve: [3000, 4000], right: 0.82, skill: 1.3, place: [450, 600], colors: 4, win: 26 },
+};
 const matches = new Map();
 const BOT_NAMES = ['🤖 AI 말랑', '🤖 AI 몽글', '🤖 AI 탱글', '🤖 AI 쫀득', '🤖 AI 폭신'];
 // 순위 점수: 1등 20점, 2등 8점(3인전), 2인전 2등·3인전 3등 3점. AI와의 경기도 똑같이 점수에 들어가요.
@@ -184,11 +192,13 @@ function createMatch(c, humans, botCount, opts = {}) {
   const id = uid(5);
   const settings = Object.assign({}, c.settings, opts.practice ? { mode: 2 } : {});
   const solo = !opts.practice && settings.mode === 1;
+  const level = LEVELS[opts.level] ? opts.level : settings.easy ? 'easy' : 'normal';
+  if (solo) { const L = LEVELS[level]; if (L.colors === 3) settings.colors = 3; if (L.colors === 4) settings.colors = Math.max(4, settings.colors); }
   const m = {
     id, code: c.code, practice: !!opts.practice, settings, pool: poolFor(settings), state: 'countdown', createdAt: Date.now(),
     startAt: Date.now() + (FAST ? 300 : opts.ranked ? 5000 : 3000), durMs: (opts.practice ? 3 : settings.matchMin || 30) * (FAST ? 6000 : 60000), pausedLeft: null, death: !opts.practice && settings.matchMin === 0,
     seq: E.pairSeq(Math.floor(Math.random() * 1e9), settings.colors, 600), players: [], deadOrder: [], timers: new Set(), log: [],
-    items: new Map(), fever: false, sprint: false, ranked: opts.ranked || null, solo,
+    items: new Map(), fever: false, sprint: false, ranked: opts.ranked || null, solo, level,
   };
   for (const q of m.pool) { const k = q.item || q.id; if (!m.items.has(k)) m.items.set(k, []); m.items.get(k).push(q); }
   // ⭐ 피버 타임: 경기 35~55% 지점에서 30초 동안
@@ -304,7 +314,7 @@ function streakEvent(m, p, fx) {
   const kind = STREAK_EVENTS[n] || (n >= 10 && (n - 10) % 3 === 0 ? 'king' : null);
   if (!kind) return;
   // 3학년 쉬운 모드: 안개·뒤죽박죽(조작을 헷갈리게 하는 방해)은 쓰지 않아요
-  if (m.settings.easy && (kind === 'fog' || kind === 'reverse')) return;
+  if (!LEVELS[m.level].curse && (kind === 'fog' || kind === 'reverse')) return;
   const t = targetOf(m, p); if (!t) return;
   p.st.events++;
   const base = { from: p.name, fromPid: p.pid, to: t.name, toPid: t.pid, streak: n };
@@ -416,7 +426,7 @@ function endMatch(m, why) {
         if (p.pid === m.ranked.defender && p.rank === 1) { bonus = 5; s.stats.defenses++; }
         s.stats.ranked++;
       }
-      const pts = p.st.first * 3 + p.st.retry + placePoints(p.rank, m.players.length) + bonus;
+      const pts = p.st.first * 3 + p.st.retry + (m.solo && p.rank === 1 ? LEVELS[m.level].win : placePoints(p.rank, m.players.length)) + bonus;
       p.points = pts; p.bonus = bonus;
       const S = s.stats;
       S.games++; if (p.rank === 1) S.wins++; S.points += pts; S.first += p.st.first; S.retry += p.st.retry; S.wrongTries += p.st.wrongTries;
@@ -425,7 +435,7 @@ function endMatch(m, why) {
       c.results.push({
         at: Date.now(), match: m.id, sid: s.id, name: s.name, mode: m.solo ? 1 : m.players.length, rank: p.rank, vsAI, points: pts, score: p.score,
         maxChain: p.st.maxChain, first: p.st.first, retry: p.st.retry, wrongTries: p.st.wrongTries, seen: p.st.seen, sent: p.st.sent, bestStreak: p.st.bestStreak, events: p.st.events, learned: p.learned.length,
-        ranked: m.ranked ? (p.pid === m.ranked.challenger ? '도전' : '방어') : '', bonus,
+        ranked: m.ranked ? (p.pid === m.ranked.challenger ? '도전' : '방어') : '', bonus, level: m.solo ? LEVELS[m.level].name : '',
         units: m.settings.units.map(u => u === 99 ? '전체' : u + '차시').join('·'), opp: m.players.filter(x => x.pid !== p.pid).map(x => x.name).join(', '),
       });
     }
@@ -464,12 +474,12 @@ function leaveMatch(c, s, silent) {
 /* ===================== AI 상대 ===================== */
 function botThink(m, p) {
   const c = clsOf(m);
-  const easy = m.settings.easy;
-  const solve = (FAST ? 300 : easy ? 7000 : 5000) + Math.random() * (FAST ? 400 : easy ? 8000 : 7000); // 3학년 속도에 맞춰 천천히 (쉬운 모드는 더 천천히)
+  const L = LEVELS[m.level];
+  const solve = (FAST ? 300 : L.solve[0]) + Math.random() * (FAST ? 400 : L.solve[1]); // 난이도에 따라 문제 푸는 시간
   later(m, () => {
     if (!p.alive || p.phase !== 'question' || m.state !== 'playing') return;
     if (c && c.paused && !m.practice) return botThink(m, p);
-    const right = Math.random() < (easy ? 0.6 : 0.68);
+    const right = Math.random() < L.right;
     let r = answer(m, p, right ? (p.q.type === 'order' ? p.q.answerKey : p.q.answer) : (p.q.type === 'order' ? 'x' : (p.q.answer + 1) % 4));
     if (!r.ok) { later(m, () => { if (p.phase === 'question') { answer(m, p, p.q.type === 'order' ? p.q.answerKey : p.q.answer); botPlace(m, p); } }, FAST ? 200 : 2500); return; }
     botPlace(m, p);
@@ -479,13 +489,13 @@ function botPlace(m, p) {
   later(m, () => {
     if (!p.alive || p.phase !== 'place' || m.state !== 'playing') return;
     const b = E.fromStr(p.board);
-    const mv = E.bestMove(b, { a: p.pair[0], b: p.pair[1], col: 2, rot: 0 }, m.settings.easy ? p.skill * 0.6 : p.skill);
+    const mv = E.bestMove(b, { a: p.pair[0], b: p.pair[1], col: 2, rot: 0 }, Math.min(0.98, p.skill * LEVELS[m.level].skill));
     const d = E.drop(b, mv); const res = E.resolve(d.board);
     const r = placed(m, p, { board: E.toStr(res.board), chain: res.chain, cleared: res.cleared, score: res.score });
     let nb = res.board;
     if (r.garbage) nb = E.addGarbage(nb, r.garbage);
     later(m, () => settled(m, p, { board: E.toStr(nb), dead: E.isDead(nb) || d.cells.some(x => x.r < 0) }), FAST ? 50 : 300 + res.chain * 700);
-  }, FAST ? 100 : (m.settings.easy ? 1600 : 900) + Math.random() * 1200);
+  }, FAST ? 100 : LEVELS[m.level].place[0] + Math.random() * LEVELS[m.level].place[1]);
 }
 
 /* ===================== 자동 매칭 ===================== */
@@ -531,8 +541,8 @@ function matchmake(c) {
   const waiting = Object.values(c.students).filter(s => s.online && (s.status === 'waiting' || s.status === 'practice') && (s.readyAt || 0) <= now).sort((a, b) => a.waitSince - b.waitSince);
   const used = new Set();
   let made = false;
-  if (c.settings.mode === 1) { // 1인용: 들어온 학생마다 바로 AI와 1:1
-    for (const s of waiting) { createMatch(c, [s], 1); made = true; }
+  if (c.settings.mode === 1) { // 1인용: 난이도를 고른 학생마다 바로 AI와 1:1
+    for (const s of waiting) if (s.level) { createMatch(c, [s], 1, { level: s.level }); made = true; }
   } else if (rankMode(c)) {
     const pos = ladderPos(c);
     // ① 도전: 도전한 학생과 도전받은 학생이 둘 다 기다리는 중이면 바로 대결
@@ -614,7 +624,7 @@ function myRanks(c, sid) {
 function matchView(m) {
   const c = clsOf(m);
   return {
-    id: m.id, state: m.state, practice: m.practice, solo: !!m.solo, mode: m.players.length, ranked: m.ranked, death: !!m.death, elapsed: m.state === 'playing' ? m.durMs - remaining(m) : 0, colors: m.settings.colors, left: remaining(m), paused: !!(c && c.paused && !m.practice), fever: m.fever, sprint: m.sprint,
+    id: m.id, state: m.state, practice: m.practice, solo: !!m.solo, level: m.level, mode: m.players.length, ranked: m.ranked, death: !!m.death, elapsed: m.state === 'playing' ? m.durMs - remaining(m) : 0, colors: m.settings.colors, left: remaining(m), paused: !!(c && c.paused && !m.practice), fever: m.fever, sprint: m.sprint,
     feverLeft: m.fever ? Math.max(0, m.feverAt + m.feverDur - (m.durMs - remainingPlay(m))) : 0,
     countdown: m.state === 'countdown' ? Math.max(0, m.startAt - Date.now()) : 0,
     players: m.players.map(p => ({ pid: p.pid, name: p.name, bot: p.isBot, board: p.board, score: p.score, alive: p.alive, pending: p.pending, target: p.target, stars: p.stars, streak: p.streak, phase: p.phase, rank: p.rank, maxChain: p.st.maxChain, first: p.st.first, seen: p.st.seen, fog: p.curse.fog > 0, reverse: p.curse.reverse > 0, golden: !!(p.q && p.q.golden && p.phase === 'question') })),
@@ -641,7 +651,7 @@ function ladderView(c) {
   return list.map((s, i) => ({ id: s.id, name: s.name, pos: i + 1, points: s.stats.points, acc: acc(s.stats), online: s.online, status: s.status, by: challengers[s.id] || [] }));
 }
 function studentView(c, s, lad) {
-  const v = { id: s.id, code: c.code, cls: c.name, grade: c.grade, name: s.name, status: s.status, running: c.running, paused: c.paused, mode: c.settings.mode, easy: !!c.settings.easy, units: c.settings.units, matchMin: c.settings.matchMin, matchId: s.matchId, myRank: myRanks(c, s.id) };
+  const v = { id: s.id, code: c.code, cls: c.name, grade: c.grade, name: s.name, status: s.status, running: c.running, paused: c.paused, mode: c.settings.mode, easy: !!c.settings.easy, level: s.level || null, units: c.settings.units, matchMin: c.settings.matchMin, matchId: s.matchId, myRank: myRanks(c, s.id) };
   if (rankMode(c)) {
     v.rankMode = true;
     v.ladder = lad === undefined ? ladderView(c) : lad;
@@ -718,6 +728,12 @@ io.on('connection', socket => {
     }
     pushClass(c);
   });
+  socket.on('setLevel', S(d => { // 1인용: 학생이 AI 난이도 고르기 (고르면 바로 대결이 열려요)
+    const { c, s } = me;
+    if (!LEVELS[d.level]) return { err: '난이도를 다시 골라 주세요.' };
+    s.level = d.level; pushClass(c); matchmake(c);
+    return { ok: true, level: s.level };
+  }));
   socket.on('ready', S(() => { // 결과 화면 → 다음 경기 기다리기
     const { c, s } = me;
     if (s.status === 'playing') { const mm = myMatch(); if (mm && mm.m.state !== 'ended') return { err: '경기 중이에요.' }; }

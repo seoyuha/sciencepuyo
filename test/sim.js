@@ -69,6 +69,8 @@ function student(code, name, opts = {}) {
   const Bs = ['가온', '누리', '다온'].map((n, i) => student(B.code, n, { switchTarget: i === 0 }));
   const Cs = ['마루', '보람'].map(n => student(C.code, n));
   for (const s of [...As, ...Bs, ...Cs]) ok((await s.join()).ok, `${s.name} 입장`);
+  ok((await emit(Cs[0].s, 'setLevel', { level: 'easy' })).level === 'easy' && (await emit(Cs[1].s, 'setLevel', { level: 'hard' })).level === 'hard', '1인용: 마루는 쉬움, 보람은 어려움을 골랐어요');
+  ok((await emit(Cs[0].s, 'setLevel', { level: 'xx' })).err, '없는 난이도는 막아요');
   const dup = student(A.code, '도레미'); const dj = await dup.join(); ok(dj.ok && dj.view.id === As[0].view.id, '같은 이름으로 다시 들어오면 같은 학생으로 이어져요'); dup.s.close(); await wait(200);
   await As[0].join();
 
@@ -83,6 +85,8 @@ function student(code, name, opts = {}) {
   ok(tb.view.matches.some(m => m.players.length === 3 && m.players.every(p => !p.bot)), '2반은 3명이 한 경기 (3인전)');
   const tc = await emit(t, 't:open', { code: C.code });
   ok(tc.view.matches.length === 2 && tc.view.matches.every(m => m.solo && m.players.length === 2 && m.players.filter(p => p.bot).length === 1), '3반은 학생마다 AI와 1:1 (1인용)');
+  const lv = Object.fromEntries(tc.view.matches.map(m => [m.players.find(p => !p.bot).name, m.level + '/' + m.colors]));
+  ok(lv['마루'] === 'easy/3' && lv['보람'] === 'hard/4', '고른 난이도대로 경기 (쉬움 3색 · 어려움 4색): ' + JSON.stringify(lv));
 
   // 일시정지 시험
   await emit(t, 't:pause', { code: A.code, on: true }); await wait(300);
@@ -109,7 +113,7 @@ function student(code, name, opts = {}) {
   ok(kinds.includes('feverOn') && kinds.includes('sprint'), '피버 타임과 막판 스퍼트 알림');
   ok(all.some(s => s.fogGot > 0), '안개를 받은 학생의 다음 젤리에 안개가 걸렸어요');
   const types = new Set(all.flatMap(s => [...s.types])); ok(types.size === 1 && types.has('quiz'), '나온 유형: ' + [...types].join(','));
-  ok(Cs.every(s => !s.events.includes('fog') && !s.events.includes('reverse')) && Cs.every(s => s.fogGot === 0), '쉬운 모드 반에는 안개·뒤죽박죽이 없어요 (' + [...new Set(Cs.flatMap(s => s.events))].join(',') + ')');
+  ok(!Cs[0].events.includes('fog') && !Cs[0].events.includes('reverse') && Cs[0].fogGot === 0, '쉬움을 고른 학생에게는 안개·뒤죽박죽이 없어요');
   ok(Cs.every(s => s.units.size && [...s.units].every(u => u === 5)), '3반(5차시)에는 5차시 문제만 나왔어요');
   ok(As.every(s => [...s.units].every(u => u >= 1 && u <= 3)), '1반(1~3차시)에는 1~3차시 문제만');
   ok(all.some(s => s.imgs > 0), `사진 붙은 문제 ${all.reduce((a, s) => a + s.imgs, 0)}개`);

@@ -289,7 +289,7 @@
       <div class="mrow"><span>방해 뿌요 상한</span><div class="opts" id="mdCap">${[[12, '12개(2줄)'], [18, '18개(3줄)'], [30, '30개(5줄)']].map(([n, l]) => `<button data-v="${n}" class="${s.garbageCap === n ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <div class="mrow"><span>남는 학생</span><div class="opts"><button id="mdAi" class="${s.aiFill ? 'on' : ''}">2인전·3인전에서 짝이 없으면 8초 안에 AI와 대결 (점수 반영)</button></div></div>
       <div class="mrow"><span>오답 다시 내기</span><div class="opts"><button id="mdRv" class="${s.review ? 'on' : ''}">첫 시도에 틀린 문제를 3문제 뒤에 한 번 더</button></div></div>
-      <div class="mnote">데스매치는 시간 제한 없이 한 명이 남을 때까지 해요 (1분 30초에 피버 타임, 5분이 지나면 공격 2배로 끝을 앞당겨요). 설정은 다음 경기부터 적용돼요. 1인(AI)은 들어온 학생마다 바로 AI 친구와 1:1로 대결하고, AI전도 랭킹 점수에 들어가요.</div>
+      <div class="mnote">데스매치는 시간 제한 없이 한 명이 남을 때까지 해요 (1분 30초에 피버 타임, 5분이 지나면 공격 2배로 끝을 앞당겨요). 설정은 다음 경기부터 적용돼요. 1인(AI)은 학생이 쉬움·보통·어려움을 직접 고르면 바로 AI 친구와 1:1로 대결해요. 이기면 쉬움 14점·보통 20점·어려움 26점(순위 점수)이 들어가요.</div>
       <div class="mbtns"><button class="pill m" id="mdOk">확인</button></div>`, m => {
       const send = async patch => { const r = await emit('t:settings', { code: cur, settings: patch }); if (r.err) return toast(r.err); view.settings = r.settings; renderDash(); };
       m.querySelectorAll('#mdTypes button').forEach(b => b.onclick = () => { b.classList.toggle('on'); const t = [...m.querySelectorAll('#mdTypes button.on')].map(x => x.dataset.t); if (!t.length) { b.classList.add('on'); return toast('하나 이상 골라 주세요.'); } send({ types: t }); });
@@ -473,7 +473,7 @@
     if (kind === 'stu') xls([
       ['학생별 요약', [['순위', '별명', '랭킹 점수', '정답률(%)', '첫 시도 정답', '재도전 정답', '받은 문제', '익힌 문제', '연습한 문제', '경기', '승', 'AI전', '최고 연쇄', '최고 연속 정답', '보낸 방해', '게임 점수']].concat(r.students.map(x => [x.rank, x.name, x.points, x.acc, x.first, x.retry, x.seen, x.mastered, x.practiced, x.games, x.wins, x.aiGames, x.bestChain, x.bestStreak, x.sent, x.score]))],
       ['많이 틀린 문제', [['틀린 횟수', '차시', '유형', '문제', '정답']].concat(r.wrongTop.map(w => [w.n, unitName(w.unit), w.type, w.text, w.answer]))]], `사이언스뿌요팡_${name}_학생기록_${today()}.xlsx`);
-    else xls([['경기 기록', [['시각', '별명', '방식', 'AI 경기', '순위', '상대', '차시', '첫 시도 정답', '재도전 정답', '틀린 시도', '받은 문제', '익힌 문제', '최고 연쇄', '최고 연속 정답', '이벤트', '보낸 방해', '게임 점수', '랭킹 점수', '랭킹전', '랭킹전 보너스']].concat(r.results.map(x => [new Date(x.at).toLocaleString('ko-KR'), x.name, x.mode === 3 ? '3인전' : x.mode === 1 ? '1인(AI)' : '2인전', x.vsAI ? 'O' : '', x.rank, x.opp, x.units, x.first, x.retry, x.wrongTries, x.seen, x.learned || 0, x.maxChain, x.bestStreak || 0, x.events || 0, x.sent, x.score, x.points, x.ranked || '', x.bonus || 0]))]], `사이언스뿌요팡_${name}_경기기록_${today()}.xlsx`);
+    else xls([['경기 기록', [['시각', '별명', '방식', 'AI 난이도', 'AI 경기', '순위', '상대', '차시', '첫 시도 정답', '재도전 정답', '틀린 시도', '받은 문제', '익힌 문제', '최고 연쇄', '최고 연속 정답', '이벤트', '보낸 방해', '게임 점수', '랭킹 점수', '랭킹전', '랭킹전 보너스']].concat(r.results.map(x => [new Date(x.at).toLocaleString('ko-KR'), x.name, x.mode === 3 ? '3인전' : x.mode === 1 ? '1인(AI)' : '2인전', x.level || '', x.vsAI ? 'O' : '', x.rank, x.opp, x.units, x.first, x.retry, x.wrongTries, x.seen, x.learned || 0, x.maxChain, x.bestStreak || 0, x.events || 0, x.sent, x.score, x.points, x.ranked || '', x.bonus || 0]))]], `사이언스뿌요팡_${name}_경기기록_${today()}.xlsx`);
   }
 
   /* ================= 반 설정 ================= */

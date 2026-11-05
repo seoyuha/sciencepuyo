@@ -276,3 +276,19 @@
 .items.ezItems{flex-wrap:nowrap}
 .items.ezItems .item{height:78px;width:286px;font-size:26px;flex:0 0 auto}
 .ezStar{font-size:20px;color:#9ad8ff}
+/* ===== 1인용 AI 난이도 고르기 ===== */
+.lvPanel{position:absolute;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:24px;background:#12062e;box-shadow:0 0 0 4px #ff2fd8,0 0 22px rgba(255,47,216,.5);z-index:2}
+.lvT{font-family:var(--fh);font-size:26px;color:#ffd6f6;text-align:center}
+.lvBtns{flex:1;display:flex;gap:10px}
+.lvBtn{flex:1;border:0;border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font-family:var(--fh);color:#06213f;
+  box-shadow:inset 0 -6px 0 rgba(0,0,0,.18);transition:transform .08s;opacity:.72}
+.lvBtn b{font-size:30px;font-weight:400}
+.lvBtn small{font-family:var(--fk);font-size:16px}
+.lvBtn.easy{background:linear-gradient(#b8ffd9,#5cf5a8)}
+.lvBtn.normal{background:linear-gradient(#b9f6ff,#5fdcf6)}
+.lvBtn.hard{background:linear-gradient(#ffc2a8,#ff7a4d)}
+.lvBtn.on{opacity:1;box-shadow:0 0 0 5px #ffe23a,0 0 18px #ffe23a;transform:scale(1.04)}
+.lvBtn:active{transform:scale(.95)}
+.lvRow{position:absolute;display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:20px;background:#12062e;box-shadow:0 0 0 3px #ff2fd8}
+.lvRow .lvL{font-family:var(--fh);font-size:26px;color:#ffd6f6;white-space:nowrap;margin-right:6px}
+.lvRow .lvBtn{height:100%}
