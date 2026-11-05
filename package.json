@@ -1,0 +1,18 @@
+{
+  "name": "science-puyo-pang",
+  "version": "1.0.0",
+  "description": "사이언스 뿌요 팡! — 3학년 2학기 과학 3단원 〈소리의 성질〉 차시별 복습 연결 퍼즐 대전",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/sim.js && node test/ranked.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18"
+  }
+}

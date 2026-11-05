@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>사이언스 뿌요 팡! 교사 관리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="neon.css">
+<link rel="stylesheet" href="teacher.css">
+</head>
+<body>
+<div id="stage">
+  <section class="scr on" id="tLogin" data-bg="t_login">
+    <input class="fld" id="pw" type="password" style="left:624px;top:410px;width:800px;height:78px" placeholder="비밀번호" autocomplete="current-password">
+    <div class="tx m" id="loginErr" style="left:170px;top:592px;width:1332px;height:44px;font-size:26px"></div>
+  </section>
+  <section class="scr" id="tDash" data-bg="t_dashboard"></section>
+  <section class="scr" id="tRank" data-bg="s_ranking"></section>
+  <section class="scr" id="tQuest" data-bg="t_questions"></section>
+  <section class="scr" id="tRec" data-bg="t_records"></section>
+  <section class="scr" id="tCls" data-bg="t_class_settings"></section>
+  <section class="scr" id="tTV" data-bg="t_tv_monitor"></section>
+
+  <div class="ov dim" id="modal"><div class="npanel mbox" id="mbox"></div></div>
+  <div class="ov dim" id="note"><div class="card" id="noteCard"><img id="noteImg" alt=""><div class="noteMsg" id="noteMsg"></div><button class="stBtn" id="noteNo"></button><button class="stBtn" id="noteYes"></button></div></div>
+  <div class="toast" id="toast"></div>
+</div>
+<input type="file" id="fileQ" accept=".xlsx,.xls,.csv" hidden>
+<input type="file" id="fileBk" accept=".json" hidden>
+<script src="/socket.io/socket.io.js"></script>
+<script src="stage.js"></script>
+<script src="engine.js"></script>
+<script src="jelly.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="teacher.js"></script>
+</body>
+</html>

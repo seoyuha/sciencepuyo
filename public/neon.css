@@ -1,0 +1,57 @@
+/* 네온 시안 공통 — 무대·버튼·글자·알림 */
+:root{--cy:#18e6ff;--mg:#ff2fd8;--ye:#ffe23a;--navy:#010c24;--ink:#061a33;--cream:#fdf8dc;--good:#2dff9a;--bad:#ff4f7a;
+  --fk:'Jua','Black Han Sans',system-ui,sans-serif;--fh:'Black Han Sans','Jua',system-ui,sans-serif;--fe:'Fredoka','Jua',system-ui,sans-serif}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#01040f;color:#fff;font-family:var(--fk)}
+body{user-select:none;-webkit-user-select:none;touch-action:manipulation}
+button,input,select{font-family:inherit}
+#stage{position:absolute;left:50%;top:50%;width:1672px;height:941px;transform-origin:50% 50%;overflow:hidden;background:#020a1e}
+.scr{position:absolute;inset:0;background-size:1672px 941px;background-repeat:no-repeat;display:none}
+.scr.on{display:block}
+.at{position:absolute}
+/* 배경 그림을 잘라 만든 버튼 */
+.hot{position:absolute;border:0;padding:0;background-color:transparent;background-size:1672px 941px;background-repeat:no-repeat;cursor:pointer;transition:transform .08s,filter .08s;outline:none}
+.hot:active,.hot.press{transform:scale(.95);filter:brightness(1.25) saturate(1.2)}
+.hot:disabled,.hot.off{filter:grayscale(.85) brightness(.55);pointer-events:none}
+/* 그림 버튼 */
+.ib{position:absolute;border:0;padding:0;background:transparent center/100% 100% no-repeat;cursor:pointer;transition:transform .08s,filter .08s;outline:none}
+.ib:active{transform:scale(.95);filter:brightness(1.2)}
+.ib:disabled{filter:grayscale(.9) brightness(.5);pointer-events:none}
+/* 빈 버튼 그림 + 글자 */
+.pill{position:absolute;border:0;padding:0 8px;background:transparent center/100% 100% no-repeat;color:#fff;font-family:var(--fh);font-size:24px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;text-shadow:0 2px 0 #001018,0 0 6px rgba(0,0,0,.6);transition:transform .08s,filter .08s;white-space:nowrap}
+.pill:active{transform:scale(.95);filter:brightness(1.2)}
+.pill.c{background-image:url(img/k_hd.webp)} .pill.cb{background-image:url(img/k_hc.webp)} .pill.m{background-image:url(img/k_hm.webp)} .pill.g{background-image:url(img/k_hg.webp);color:#cfd6e4}
+.pill.rc{background-image:url(img/k_rc.webp)} .pill.rm{background-image:url(img/k_rm.webp)} .pill.rd{background-image:url(img/k_rd.webp)}
+/* 글자 */
+.tx{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;font-family:var(--fh);color:#fff;
+  -webkit-text-stroke:5px #020a1c;paint-order:stroke fill;line-height:1.15;white-space:nowrap;overflow:hidden}
+.tx.l{justify-content:flex-start;text-align:left}
+.tx.r{justify-content:flex-end;text-align:right}
+.tx.y{color:var(--ye)} .tx.c{color:var(--cy)} .tx.m{color:#ff7ee8} .tx.g{color:var(--good)}
+.dark{color:#0b1d3a!important;-webkit-text-stroke:0!important}
+.cover{position:absolute;border-radius:10px}
+/* 네온 판(직접 그리는 판) */
+.npanel{position:absolute;background:var(--navy);border:4px solid var(--cy);border-radius:16px;box-shadow:0 0 14px rgba(24,230,255,.65),inset 0 0 14px rgba(24,230,255,.25)}
+.npanel.m{border-color:var(--mg);box-shadow:0 0 14px rgba(255,47,216,.6),inset 0 0 14px rgba(255,47,216,.22)}
+.npanel.y{border-color:var(--ye);box-shadow:0 0 14px rgba(255,226,58,.55),inset 0 0 12px rgba(255,226,58,.2)}
+/* 알림 */
+.toast{position:absolute;left:50%;bottom:30px;transform:translate(-50%,140px);background:rgba(2,10,30,.94);border:3px solid var(--cy);box-shadow:0 0 16px rgba(24,230,255,.6);
+  color:#fff;padding:14px 30px;border-radius:18px;font-size:26px;z-index:90;transition:transform .25s;white-space:nowrap;font-family:var(--fk)}
+.toast.on{transform:translate(-50%,0)}
+.ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:70}
+.ov.on{display:flex}
+.ov.dim{background:rgba(1,4,18,.6)}
+.ov .card{position:relative}
+.ov .card img{display:block;width:100%}
+/* 가로로 돌려 주세요 */
+#rotate{position:fixed;inset:0;background:#020a1e;z-index:999;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;font-size:22px;text-align:center;padding:20px}
+#rotate img{width:70vw;max-width:360px}
+@media (orientation:portrait) and (max-width:820px){#rotate{display:flex}}
+@keyframes pop{0%{transform:scale(.3);opacity:0}30%{transform:scale(1.15);opacity:1}60%{transform:scale(1)}100%{transform:scale(1);opacity:1}}
+@keyframes popout{0%{transform:scale(.3) rotate(-6deg);opacity:0}25%{transform:scale(1.15) rotate(2deg);opacity:1}70%{transform:scale(1);opacity:1}100%{transform:translateY(-40px);opacity:0}}
+@keyframes shake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(4px)}}
+@keyframes pulse{50%{transform:scale(1.06)}}
+@keyframes bob{50%{transform:translateY(-10px)}}
+.shake{animation:shake .35s}
+.stBtn{position:absolute;border:0;background:transparent;cursor:pointer;border-radius:30px;padding:0}
