@@ -76,7 +76,7 @@ function load() {
 
 /* ===================== 반·학생 ===================== */
 function defaultSettings() {
-  return { mode: 2, units: [99], types: Object.keys(TYPES), matchMin: 5, colors: 4, garbageCap: 12, aiFill: true, review: true, challenge: false };
+  return { mode: 2, units: [99], types: Object.keys(TYPES), matchMin: 5, colors: 3, easy: true, garbageCap: 12, aiFill: true, review: true, challenge: false };
 }
 function blankClass(code, name, grade) {
   return { code, name: name || `${code}반`, grade: Number(grade) || 3, createdAt: Date.now(), settings: defaultSettings(), students: {}, results: [], wrongCount: {}, running: false, paused: false, pausedAt: 0 };
@@ -303,6 +303,8 @@ function streakEvent(m, p, fx) {
   const n = p.streak;
   const kind = STREAK_EVENTS[n] || (n >= 10 && (n - 10) % 3 === 0 ? 'king' : null);
   if (!kind) return;
+  // 3학년 쉬운 모드: 안개·뒤죽박죽(조작을 헷갈리게 하는 방해)은 쓰지 않아요
+  if (m.settings.easy && (kind === 'fog' || kind === 'reverse')) return;
   const t = targetOf(m, p); if (!t) return;
   p.st.events++;
   const base = { from: p.name, fromPid: p.pid, to: t.name, toPid: t.pid, streak: n };
@@ -462,11 +464,12 @@ function leaveMatch(c, s, silent) {
 /* ===================== AI 상대 ===================== */
 function botThink(m, p) {
   const c = clsOf(m);
-  const solve = (FAST ? 300 : 5000) + Math.random() * (FAST ? 400 : 7000); // 3학년 속도에 맞춰 천천히
+  const easy = m.settings.easy;
+  const solve = (FAST ? 300 : easy ? 7000 : 5000) + Math.random() * (FAST ? 400 : easy ? 8000 : 7000); // 3학년 속도에 맞춰 천천히 (쉬운 모드는 더 천천히)
   later(m, () => {
     if (!p.alive || p.phase !== 'question' || m.state !== 'playing') return;
     if (c && c.paused && !m.practice) return botThink(m, p);
-    const right = Math.random() < 0.68;
+    const right = Math.random() < (easy ? 0.6 : 0.68);
     let r = answer(m, p, right ? (p.q.type === 'order' ? p.q.answerKey : p.q.answer) : (p.q.type === 'order' ? 'x' : (p.q.answer + 1) % 4));
     if (!r.ok) { later(m, () => { if (p.phase === 'question') { answer(m, p, p.q.type === 'order' ? p.q.answerKey : p.q.answer); botPlace(m, p); } }, FAST ? 200 : 2500); return; }
     botPlace(m, p);
@@ -476,13 +479,13 @@ function botPlace(m, p) {
   later(m, () => {
     if (!p.alive || p.phase !== 'place' || m.state !== 'playing') return;
     const b = E.fromStr(p.board);
-    const mv = E.bestMove(b, { a: p.pair[0], b: p.pair[1], col: 2, rot: 0 }, p.skill);
+    const mv = E.bestMove(b, { a: p.pair[0], b: p.pair[1], col: 2, rot: 0 }, m.settings.easy ? p.skill * 0.6 : p.skill);
     const d = E.drop(b, mv); const res = E.resolve(d.board);
     const r = placed(m, p, { board: E.toStr(res.board), chain: res.chain, cleared: res.cleared, score: res.score });
     let nb = res.board;
     if (r.garbage) nb = E.addGarbage(nb, r.garbage);
     later(m, () => settled(m, p, { board: E.toStr(nb), dead: E.isDead(nb) || d.cells.some(x => x.r < 0) }), FAST ? 50 : 300 + res.chain * 700);
-  }, FAST ? 100 : 900 + Math.random() * 900);
+  }, FAST ? 100 : (m.settings.easy ? 1600 : 900) + Math.random() * 1200);
 }
 
 /* ===================== 자동 매칭 ===================== */
@@ -638,7 +641,7 @@ function ladderView(c) {
   return list.map((s, i) => ({ id: s.id, name: s.name, pos: i + 1, points: s.stats.points, acc: acc(s.stats), online: s.online, status: s.status, by: challengers[s.id] || [] }));
 }
 function studentView(c, s, lad) {
-  const v = { id: s.id, code: c.code, cls: c.name, grade: c.grade, name: s.name, status: s.status, running: c.running, paused: c.paused, mode: c.settings.mode, units: c.settings.units, matchMin: c.settings.matchMin, matchId: s.matchId, myRank: myRanks(c, s.id) };
+  const v = { id: s.id, code: c.code, cls: c.name, grade: c.grade, name: s.name, status: s.status, running: c.running, paused: c.paused, mode: c.settings.mode, easy: !!c.settings.easy, units: c.settings.units, matchMin: c.settings.matchMin, matchId: s.matchId, myRank: myRanks(c, s.id) };
   if (rankMode(c)) {
     v.rankMode = true;
     v.ladder = lad === undefined ? ladderView(c) : lad;
@@ -790,6 +793,7 @@ io.on('connection', socket => {
     if ([12, 18, 30].includes(Number(v.garbageCap))) st.garbageCap = Number(v.garbageCap);
     if (typeof v.aiFill === 'boolean') st.aiFill = v.aiFill;
     if (typeof v.review === 'boolean') st.review = v.review;
+    if (typeof v.easy === 'boolean') st.easy = v.easy;
     if (st.mode !== 2) st.challenge = false;
     if (typeof v.challenge === 'boolean') {
       st.challenge = v.challenge; if (v.challenge) st.mode = 2;

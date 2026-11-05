@@ -189,7 +189,7 @@
     const v = view;
     if (!v) { $('#dTitle').textContent = '왼쪽에서 새 반을 만들어 주세요'; $('#dCode').textContent = ''; return; }
     const s = v.settings;
-    $('#dTitle').innerHTML = `${esc(v.name)} <span style="font-size:22px;margin-left:14px;color:${v.running ? (v.paused ? '#ffe23a' : '#2dff9a') : '#9ad8ff'}">${v.running ? (v.paused ? '⏸ 일시정지' : s.challenge ? '⚔ 랭킹전 진행 중 · 학생이 도전 상대를 골라요' : '● 진행 중 · 새로 온 학생도 자동 배정') : s.challenge ? '랭킹전 준비 · 모두 시작을 누르세요' : '대기 중 · 모두 시작을 누르세요'}</span>`;
+    $('#dTitle').innerHTML = `${esc(v.name)} ${s.easy ? '<span style="font-size:18px;margin-left:10px;color:#2dff9a">🐣 쉬운 모드</span>' : ''}<span style="font-size:22px;margin-left:14px;color:${v.running ? (v.paused ? '#ffe23a' : '#2dff9a') : '#9ad8ff'}">${v.running ? (v.paused ? '⏸ 일시정지' : s.challenge ? '⚔ 랭킹전 진행 중 · 학생이 도전 상대를 골라요' : '● 진행 중 · 새로 온 학생도 자동 배정') : s.challenge ? '랭킹전 준비 · 모두 시작을 누르세요' : '대기 중 · 모두 시작을 누르세요'}</span>`;
     $('#dCode').textContent = v.code;
     if (full || $('#dQR').dataset.code !== v.code) {
       $('#dQR').dataset.code = v.code; $('#dQR').innerHTML = '';
@@ -284,6 +284,7 @@
     const s = view.settings;
     const typeBtns = Object.entries(TYPES).map(([k, l]) => `<button data-t="${k}" class="${s.types.includes(k) ? 'on' : ''}">${l}</button>`).join('');
     modal(`<h2>세부 설정</h2>
+      <div class="mrow"><span>3학년 쉬운 모드</span><div class="opts"><button id="mdEz" class="${s.easy ? 'on' : ''}">큰 버튼 4개 · 안개·뒤죽박죽 없음 · AI 천천히</button></div></div>
       <div class="mrow"><span>경기 시간</span><div class="opts" id="mdMin">${[3, 5, 7, 10, 0].map(n => `<button data-v="${n}" class="${s.matchMin === n ? 'on' : ''}">${n ? n + '분' : '데스매치 (한 명이 남을 때까지)'}</button>`).join('')}</div></div>
       <div class="mrow"><span>방해 뿌요 상한</span><div class="opts" id="mdCap">${[[12, '12개(2줄)'], [18, '18개(3줄)'], [30, '30개(5줄)']].map(([n, l]) => `<button data-v="${n}" class="${s.garbageCap === n ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <div class="mrow"><span>남는 학생</span><div class="opts"><button id="mdAi" class="${s.aiFill ? 'on' : ''}">2인전·3인전에서 짝이 없으면 8초 안에 AI와 대결 (점수 반영)</button></div></div>
@@ -295,6 +296,7 @@
       const single = (id, key) => m.querySelectorAll(`#${id} button`).forEach(b => b.onclick = () => { m.querySelectorAll(`#${id} button`).forEach(x => x.classList.toggle('on', x === b)); send({ [key]: Number(b.dataset.v) }); });
       single('mdMin', 'matchMin'); single('mdCap', 'garbageCap');
       m.querySelector('#mdAi').onclick = e => { e.target.classList.toggle('on'); send({ aiFill: e.target.classList.contains('on') }); };
+      m.querySelector('#mdEz').onclick = e => { e.target.classList.toggle('on'); send({ easy: e.target.classList.contains('on') }); };
       m.querySelector('#mdRv').onclick = e => { e.target.classList.toggle('on'); send({ review: e.target.classList.contains('on') }); };
       m.querySelector('#mdOk').onclick = closeModal;
     });

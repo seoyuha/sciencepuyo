@@ -55,7 +55,7 @@
   $('#tStart').onclick = () => { fullScreen(); show('sEntry'); setTimeout(() => ($('#inCode').value ? $('#inName') : $('#inCode')).focus(), 50); };
   $('#tHow').onclick = () => openHow('sTitle');
   $('#tTeacher').onclick = () => { location.href = 'teacher.html'; };
-  function openHow(from) { backTo = from; $('#sHow').classList.remove('p2'); show('sHow'); }
+  function openHow(from) { backTo = from; $('#sHow').classList.remove('p2'); renderEvents(); show('sHow'); }
   $('#hBack').onclick = () => show(backTo);
   $('#hNext').onclick = () => $('#sHow').classList.add('p2');
   $('#h2Back').onclick = () => $('#sHow').classList.remove('p2');
@@ -71,7 +71,11 @@
     ['sprint', '', '<em>막판 스퍼트</em>', '마지막 1분 · 연쇄 공격 2배'],
     ['comeback', '', '<em>역전 찬스</em>', '판이 9줄 넘게 차면 정답마다 방해 뿌요 6개 제거'],
   ];
-  $('#evGrid').innerHTML = EVENTS.map(([i, c, t, d]) => `<div class="evc ${c}"><img src="img/i_${i}.webp" alt=""><div><b>${t}</b><span>${d}</span></div></div>`).join('');
+  function renderEvents() {
+    let ez = false; try { ez = !!(ME && ME.easy); } catch (e) { /* 아직 입장 전 */ }
+    $('#evGrid').innerHTML = EVENTS.filter(e => !ez || !['fog', 'reverse', 'shield'].includes(e[0])).map(([i, c, t, d]) => `<div class="evc ${c}"><img src="img/i_${i}.webp" alt=""><div><b>${t}</b><span>${d}</span></div></div>`).join('');
+  }
+  renderEvents();
 
   /* ---------- 입장 ---------- */
   let ME = null;
@@ -397,7 +401,7 @@
     $('#myStars').textContent = G.stars;
     const st = p ? p.streak : 0;
     $('#myStreak').textContent = st;
-    const nxt = st < 3 ? [3, 'fog'] : st < 5 ? [5, 'reverse'] : st < 7 ? [7, 'bomb'] : st < 10 ? [10, 'king'] : [10 + Math.ceil((st - 9) / 3) * 3, 'king'];
+    const nxt = easyOn() && st < 7 ? [7, 'bomb'] : st < 3 ? [3, 'fog'] : st < 5 ? [5, 'reverse'] : st < 7 ? [7, 'bomb'] : st < 10 ? [10, 'king'] : [10 + Math.ceil((st - 9) / 3) * 3, 'king'];
     $('#myStreakNext').innerHTML = `${nxt[0] - st}개 더 <img src="img/i_${nxt[1]}.webp" alt="">`;
     const pend = p ? p.pending : 0;
     $('#myGarb').textContent = pend;
@@ -517,18 +521,27 @@
   }
 
   /* ---------- 뿌요 놓기 ---------- */
+  const easyOn = () => !!(ME && ME.easy);
   function renderPlace() {
     qMode(false); $('#choices').innerHTML = '';
+    $('#sGame').classList.toggle('easy', easyOn()); $('#sGame').classList.remove('ezWait');
+    if (easyOn()) {
+      setMission(`<div class="prompt ko ezTitle">뿌요를 놓으세요!</div><div class="ezHow"><span>◀ ▶ 옮기기</span><span>↻ 돌리기</span><span>⬇ 놓기</span></div><div class="ask ezTip">같은 색 4개를 이으면 펑! 터져요</div>`);
+      showPane(`<div class="items ezItems"><button class="item" id="itColor" ${G.stars < 2 ? 'disabled' : ''}><img src="img/i_color.webp" alt="">색 바꾸기<em>★2</em></button><button class="item" id="itClear" ${G.stars < 3 ? 'disabled' : ''}><img src="img/i_clear.webp" alt="">방해 지우기<em>★3</em></button></div><div class="ezStar">별(★)을 모으면 쓸 수 있어요</div><div id="palette"></div>`);
+      bindItems(); renderSide(); return;
+    }
     $('#controls').classList.remove('off'); $('#controls').classList.toggle('rev', !!G.reverse);
     setMission(`<div class="prompt ko" style="font-size:40px">${G.reverse ? '뒤죽박죽! ' : G.fog ? '안개 속에서 ' : ''}뿌요를 놓으세요!</div><div class="ask">${G.fog ? '떨어질 자리가 가려졌어요. 잘 보고 놓아요!' : G.reverse ? '◀ ▶가 반대로 움직여요 · 판을 눌러 옮기는 건 그대로예요' : '흐린 뿌요가 떨어질 자리예요 · 같은 색 4개를 이어 보세요'}</div>`);
     showPane(`<div class="items"><button class="item" id="itColor" ${G.stars < 2 ? 'disabled' : ''}><img src="img/i_color.webp" alt="">색 바꾸기<em>★2</em></button><button class="item" id="itClear" ${G.stars < 3 ? 'disabled' : ''}><img src="img/i_clear.webp" alt="">방해 지우기<em>★3</em></button></div><div id="palette"></div>`);
+    bindItems(); renderSide();
+  }
+  function bindItems() {
     $('#itColor').onclick = () => {
       const n = G.view ? G.view.colors : 4;
       $('#palette').innerHTML = `<div class="palette">${Array.from({ length: n }, (_, i) => `<button data-c="${i + 1}"><img src="${J.src(i + 1)}" alt=""></button>`).join('')}</div>`;
       $$('#palette button').forEach(b => b.onclick = async () => { const c = Number(b.dataset.c); const r = await emit('m:item', { kind: 'color', a: c, b: c }); if (r.err) return toast(r.err); G.stars = r.stars; G.pair.a = r.pair[0]; G.pair.b = r.pair[1]; SFX.star(); renderPlace(); renderSide(); });
     };
     $('#itClear').onclick = async () => { const r = await emit('m:item', { kind: 'clear' }); if (r.err) return toast(r.err); G.stars = r.stars; G.board = E.fromStr(r.board); toast(`방해 뿌요 ${r.removed}개를 지웠어요!`); SFX.star(); renderPlace(); renderSide(); };
-    renderSide();
   }
   function act(k) {
     if (G.phase !== 'place' || !G.pair) return;
@@ -546,6 +559,7 @@
     const up = () => { if (b.classList.contains('ib')) { b.style.backgroundImage = `url(img/c_${b.dataset.k}.webp)`; b.classList.remove('press'); } };
     b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
   });
+  $$('#easyCtl .ez').forEach(b => b.addEventListener('pointerdown', e => { e.preventDefault(); act(b.dataset.k); b.classList.add('press'); setTimeout(() => b.classList.remove('press'), 140); }));
   addEventListener('keydown', e => {
     if (cur() !== 'sGame') return;
     const m = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'rotR', z: 'rotL', x: 'rotR', ' ': 'drop', ArrowDown: 'drop', Enter: 'drop' }[e.key];
@@ -561,7 +575,7 @@
 
   async function doDrop() {
     if (G.phase !== 'place' || !G.pair || G.busy) return;
-    G.busy = true; G.phase = 'anim'; $('#controls').classList.add('off'); $('#controls').classList.remove('rev'); G.fog = false; G.reverse = false;
+    G.busy = true; G.phase = 'anim'; $('#controls').classList.add('off'); $('#sGame').classList.add('ezWait'); $('#controls').classList.remove('rev'); G.fog = false; G.reverse = false;
     const pair = G.pair; G.pair = null;
     const d = E.drop(G.board, pair);
     const cs = G.cell, off = [[0, -1], [1, 0], [0, 1], [-1, 0]][pair.rot], baseR = pair.rot === 2 ? 0 : 1;

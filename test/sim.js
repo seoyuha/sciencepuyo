@@ -60,9 +60,9 @@ function student(code, name, opts = {}) {
   const L = await emit(t, 't:login', { pw: 'test' }); ok(L.ok, '교사 로그인');
   const A = await emit(t, 't:newClass', { name: '시험 1반', grade: 3 }); const B = await emit(t, 't:newClass', { name: '시험 2반', grade: 3 }); const C = await emit(t, 't:newClass', { name: '시험 3반', grade: 3 });
   ok(A.code && B.code, `반 두 개 (코드 ${A.code}, ${B.code})`);
-  await emit(t, 't:settings', { code: A.code, settings: { mode: 2, units: [1, 2, 3], matchMin: 3 } });
-  await emit(t, 't:settings', { code: B.code, settings: { mode: 3, units: [99], matchMin: 3, colors: 3 } });
-  const cs = await emit(t, 't:settings', { code: C.code, settings: { mode: 1, units: [5], matchMin: 3 } }); ok(cs.settings.mode === 1 && cs.settings.units[0] === 5, '3반: 1인용(AI) · 5차시');
+  await emit(t, 't:settings', { code: A.code, settings: { mode: 2, units: [1, 2, 3], matchMin: 3, easy: false } });
+  await emit(t, 't:settings', { code: B.code, settings: { mode: 3, units: [99], matchMin: 3, colors: 3, easy: false } });
+  const cs = await emit(t, 't:settings', { code: C.code, settings: { mode: 1, units: [5], matchMin: 3 } }); ok(cs.settings.mode === 1 && cs.settings.units[0] === 5 && cs.settings.easy === true && cs.settings.colors === 3, '3반: 1인용(AI) · 5차시 · 쉬운 모드(기본) · 3색');
 
   console.log('▶ 학생 입장 (1반 5명 → 2명씩 짝 + 남는 1명은 AI, 2반 3명 → 3인전)');
   const As = ['도레미', '하늘', '바다', '솔이', '나래'].map(n => student(A.code, n));
@@ -109,6 +109,7 @@ function student(code, name, opts = {}) {
   ok(kinds.includes('feverOn') && kinds.includes('sprint'), '피버 타임과 막판 스퍼트 알림');
   ok(all.some(s => s.fogGot > 0), '안개를 받은 학생의 다음 젤리에 안개가 걸렸어요');
   const types = new Set(all.flatMap(s => [...s.types])); ok(types.size === 1 && types.has('quiz'), '나온 유형: ' + [...types].join(','));
+  ok(Cs.every(s => !s.events.includes('fog') && !s.events.includes('reverse')) && Cs.every(s => s.fogGot === 0), '쉬운 모드 반에는 안개·뒤죽박죽이 없어요 (' + [...new Set(Cs.flatMap(s => s.events))].join(',') + ')');
   ok(Cs.every(s => s.units.size && [...s.units].every(u => u === 5)), '3반(5차시)에는 5차시 문제만 나왔어요');
   ok(As.every(s => [...s.units].every(u => u >= 1 && u <= 3)), '1반(1~3차시)에는 1~3차시 문제만');
   ok(all.some(s => s.imgs > 0), `사진 붙은 문제 ${all.reduce((a, s) => a + s.imgs, 0)}개`);
