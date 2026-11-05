@@ -14,7 +14,7 @@ const PORT = process.env.PORT || 3000;
 const FAST = process.env.FAST === '1'; // 시험용: 대기 시간을 짧게
 // 교사 비밀번호: 그랑프리와 같은 비밀번호를 써요 (코드에는 알아볼 수 없는 값만 들어 있어요).
 // Render의 Environment에 TEACHER_PASSWORD 를 넣으면 그 값으로 바뀌어요.
-const PW_SALT = 'd057941223c441b7d5e80c1f', PW_HASH = 'c16e713ee933471431d0657ac15d0886d387e97319e6ab154de8e6ecb5aee38e';
+const PW_SALT = '9cd02e449c820946cdf3f4c7', PW_HASH = 'cd580fb9495c171ed11ee919cbe6d58d06f9801c2e5b7346ea13012fb5829fd1';
 function checkPw(pw) {
   pw = String(pw || '');
   if (process.env.TEACHER_PASSWORD) return pw === process.env.TEACHER_PASSWORD;
@@ -947,6 +947,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('\n  사이언스 뿌요 팡!');
   console.log(`  학생: ${process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + PORT}`);
   console.log(`  교사: ${process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + PORT}/teacher.html`);
-  console.log(`  문제 ${BASE_Q.length}개 · 교사 비밀번호 ${process.env.TEACHER_PASSWORD ? '환경변수 사용' : '기본(그랑프리와 같음)'}\n`);
+  console.log(`  문제 ${BASE_Q.length}개 · 교사 비밀번호 ${process.env.TEACHER_PASSWORD ? '환경변수 사용' : '기본'}\n`);
 });
 module.exports = { server };
