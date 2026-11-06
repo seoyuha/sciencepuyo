@@ -179,8 +179,8 @@ function hintFor(q, tries, wrongIdx) {
 // curse: 안개·뒤죽박죽 사용 · solve: AI가 문제를 푸는 시간(최소, 더하는 폭) · right: AI 첫 시도 정답률 · skill: 뿌요 쌓는 실력 배율
 // colors: 뿌요 색 수(null이면 반 설정) · win: 1인용에서 이겼을 때 순위 점수 (어려울수록 더 많이)
 const LEVELS = {
-  easy: { name: '쉬움', icon: '🐣', curse: false, solve: [7000, 8000], right: 0.6, skill: 0.6, place: [1600, 1200], colors: 3, win: 14 },
-  normal: { name: '보통', icon: '🙂', curse: true, solve: [5000, 7000], right: 0.68, skill: 1, place: [900, 1200], colors: null, win: 20 },
+  easy: { name: '쉬움', icon: '🐣', curse: false, solve: [8000, 8000], right: 0.5, skill: 0.35, place: [1800, 1400], colors: 3, win: 14 },
+  normal: { name: '보통', icon: '🙂', curse: true, solve: [6000, 6000], right: 0.6, skill: 0.6, place: [1500, 1500], colors: null, win: 20 },
   hard: { name: '어려움', icon: '🔥', curse: true, solve: [3000, 4000], right: 0.82, skill: 1.3, place: [450, 600], colors: 4, win: 26 },
 };
 const matches = new Map();
@@ -428,10 +428,10 @@ function endMatch(m, why) {
         if (p.pid === m.ranked.defender && p.rank === 1) { bonus = 5; s.stats.defenses++; }
         s.stats.ranked++;
       }
-      const pts = p.st.first * 3 + p.st.retry + (m.solo && p.rank === 1 ? LEVELS[m.level].win : placePoints(p.rank, m.players.length)) + bonus;
+      const pts = p.st.first * 3 + p.st.retry + (m.why === 'swap' ? 0 : m.solo && p.rank === 1 ? LEVELS[m.level].win : placePoints(p.rank, m.players.length)) + bonus;
       p.points = pts; p.bonus = bonus;
       const S = s.stats;
-      S.games++; if (p.rank === 1) S.wins++; S.points += pts; S.first += p.st.first; S.retry += p.st.retry; S.wrongTries += p.st.wrongTries;
+      if (m.why !== 'swap') { S.games++; if (p.rank === 1) S.wins++; } S.points += pts; S.first += p.st.first; S.retry += p.st.retry; S.wrongTries += p.st.wrongTries;
       S.seen += p.st.seen; S.bestChain = Math.max(S.bestChain, p.st.maxChain); S.score += p.score; S.sent += p.st.sent; S.chains2 += p.st.chains2;
       S.events += p.st.events; S.bestStreak = Math.max(S.bestStreak, p.st.bestStreak); if (vsAI) S.aiGames++;
       c.results.push({
@@ -566,7 +566,24 @@ function matchmake(c) {
     const free = waiting.filter(x => !used.has(x.id) && !x.challenge && now - x.waitSince >= RANK_WAIT);
     if (pairUp(c, free, used, 2, FAST ? 300 : 3000)) made = true;
   } else if (pairUp(c, waiting, used, n, FAST ? 600 : 8000)) made = true;
+  if (c.settings.mode !== 1 && swapAI(c, waiting.filter(x => !used.has(x.id) && !x.challenge && (!rankMode(c) || now - x.waitSince >= RANK_WAIT)), used, rankMode(c) ? 2 : n)) made = true;
   if (made) pushClass(c);
+}
+// AI와 대결 중인 학생이 있는데 친구가 새로 기다리면: AI 경기를 멈추고 친구끼리 새로 시작해요
+function swapAI(c, free, used, n) {
+  let made = false;
+  for (const m of [...matches.values()]) {
+    if (!free.length) break;
+    if (m.code !== c.code || m.practice || m.ranked || m.solo || m.state === 'ended' || !m.players.some(p => p.isBot)) continue;
+    const hs = m.players.filter(p => !p.isBot).map(p => c.students[p.pid]).filter(s => s && s.online && s.matchId === m.id);
+    if (!hs.length || hs.length + free.length < n) continue;
+    const add = free.splice(0, n - hs.length);
+    for (const s of hs) { const sid = s.socketId; if (sid) io.to(sid).emit('feed', `${add.map(x => x.name).join(', ')}이(가) 들어왔어요! AI 대결을 멈추고 친구와 새로 시작해요`); }
+    endMatch(m, 'swap');
+    add.forEach(x => used.add(x.id)); hs.forEach(x => used.add(x.id));
+    createMatch(c, [...hs, ...add], 0); made = true;
+  }
+  return made;
 }
 function feed(c, text) { for (const s of Object.values(c.students)) if (s.online && s.socketId) io.to(s.socketId).emit('feed', text); }
 setInterval(() => { for (const c of Object.values(DB.classes)) matchmake(c); }, FAST ? 200 : 1000);

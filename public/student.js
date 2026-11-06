@@ -298,6 +298,7 @@
     if (fx.type === 'event') onEvent(fx);
   });
   socket.on('m:end', r => {
+    if (r.why === 'swap') { G.phase = 'idle'; $('#banner').classList.remove('on'); return; } // 친구가 와서 AI 경기를 멈춤 → 곧 새 경기
     G.phase = 'idle'; G.fog = G.reverse = false; $('#banner').classList.remove('on'); $('#controls').classList.add('off');
     G.endPending = r; hideStatus(); showStatus('end');
     setTimeout(() => { if (G.endPending === r) goResult(); }, 1800);
