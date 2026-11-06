@@ -578,8 +578,10 @@ function studentRow(c, s) {
   return { id: s.id, name: s.name, cls: c.name, code: c.code, points: S.points, games: S.games, wins: S.wins, acc: acc(S), first: S.first, retry: S.retry, seen: S.seen, bestChain: S.bestChain, sent: S.sent, score: S.score, online: s.online, status: s.status, bestStreak: S.bestStreak, events: S.events, aiGames: S.aiGames, challengeWins: S.challengeWins || 0, defenses: S.defenses || 0,
     mastered: Object.values(s.mastery || {}).filter(e => e.c >= 2).length, practiced: Object.keys(s.mastery || {}).length };
 }
-const SORTS = { points: (a, b) => b.points - a.points || b.acc - a.acc, acc: (a, b) => b.acc - a.acc || b.seen - a.seen, chain: (a, b) => b.bestChain - a.bestChain || b.points - a.points };
-function rankRows(rows, by) { rows = rows.slice().sort(SORTS[by] || SORTS.points); let prev = null, r = 0; rows.forEach((x, i) => { const k = by === 'acc' ? x.acc : by === 'chain' ? x.bestChain : x.points; if (k !== prev) r = i + 1; x.rank = r; prev = k; }); return rows; }
+const SORTS = { points: (a, b) => b.points - a.points || b.acc - a.acc, acc: (a, b) => b.acc - a.acc || b.seen - a.seen, chain: (a, b) => b.bestChain - a.bestChain || b.points - a.points,
+  streak: (a, b) => b.bestStreak - a.bestStreak || b.points - a.points, learn: (a, b) => b.mastered - a.mastered || b.points - a.points, chal: (a, b) => (b.challengeWins + b.defenses) - (a.challengeWins + a.defenses) || b.points - a.points };
+const SORT_KEY = { points: x => x.points, acc: x => x.acc, chain: x => x.bestChain, streak: x => x.bestStreak, learn: x => x.mastered, chal: x => x.challengeWins + x.defenses };
+function rankRows(rows, by) { rows = rows.slice().sort(SORTS[by] || SORTS.points); let prev = null, r = 0; rows.forEach((x, i) => { const k = (SORT_KEY[by] || SORT_KEY.points)(x); if (k !== prev) r = i + 1; x.rank = r; prev = k; }); return rows; }
 function titles(rows) {
   const t = {};
   const give = (key, label, icon, pick) => { const p = rows.filter(pick.ok).sort(pick.cmp)[0]; if (p) (t[p.id] = t[p.id] || []).push({ key, label, icon }); };
@@ -777,7 +779,7 @@ io.on('connection', socket => {
     pushClass(c); return { ok: true };
   }));
   socket.on('cancelChallenge', S(() => { const { c, s } = me; s.challenge = null; s.waitSince = Math.max(s.waitSince, Date.now() - RANK_WAIT + 8000); pushClass(c); }));
-  socket.on('myRanking', S(d => { const { c, s } = me; const by = d.by || 'points'; return { ok: true, cls: classRanking(c, by).slice(0, 30), me: myRanks(c, s.id) }; }));
+  socket.on('myRanking', S(d => { const { c, s } = me; const by = SORTS[d.by] ? d.by : 'points'; return { ok: true, by, cls: classRanking(c, by).slice(0, 30), grade: gradeRanking(c.grade, by).slice(0, 30), battle: classBattle(c.grade), me: myRanks(c, s.id) }; }));
 
   /* ---------- 교사 ---------- */
   socket.on('t:login', (d, cb) => {

@@ -181,21 +181,30 @@
   $('#lbRank').onclick = () => ME && ME.rankMode ? openChal() : openRanking('sLobby');
 
   /* ---------- 랭킹 ---------- */
-  const RK = { tab: 'cls', page: 0, data: null, from: 'sLobby' };
+  const RK = { tab: 'cls', page: 0, data: null, from: 'sLobby', by: 'points' };
+  const RANK_BY = [['points', '랭킹 점수', x => x.points], ['acc', '정답률', x => x.acc + '%'], ['chain', '최고 연쇄', x => x.bestChain], ['streak', '연속 정답', x => x.bestStreak], ['learn', '익힌 표현', x => x.mastered]];
   async function openRanking(from) {
     RK.from = from; RK.page = 0;
-    const r = await emit('myRanking', { by: 'points' }); if (r.err) return toast(r.err);
+    const r = await emit('myRanking', { by: RK.by }); if (r.err) return toast(r.err);
     RK.data = r; RK.tab = 'cls'; renderRanking(); show('sRank');
   }
+  async function reloadRanking() {
+    const r = await emit('myRanking', { by: RK.by }); if (r.err) return toast(r.err);
+    RK.data = r; RK.page = 0; renderRanking();
+  }
+  $('#rkBy').onchange = e => { RK.by = e.target.value; reloadRanking(); };
   function renderRanking() {
     const r = RK.data; if (!r) return;
     const tabs = [['cls', '우리 반', [312, 137, 643, 207]], ['grade', '학년 전체', [668, 137, 1003, 207]], ['battle', '반 대항전', [1030, 137, 1360, 207]]];
     $('#rkTabs').innerHTML = tabs.map(([k, l, b]) => `<button class="pill ${k === RK.tab ? 'm' : 'c'}" data-t="${k}" style="${box(b[0] - 4, b[1] - 4, b[2] + 4, b[3] + 4)};font-size:34px">${l}</button>`).join('');
     $$('#rkTabs button').forEach(b => b.onclick = () => { RK.tab = b.dataset.t; RK.page = 0; renderRanking(); });
+    const RB = RANK_BY.find(x => x[0] === RK.by) || RANK_BY[0];
+    $('#rkBy').innerHTML = RANK_BY.map(([k, l]) => `<option value="${k}" ${k === RK.by ? 'selected' : ''}>${l}</option>`).join('');
+    $('#rkBy').style.display = RK.tab === 'battle' ? 'none' : '';
     let rows = RK.tab === 'cls' ? r.cls : RK.tab === 'grade' ? (r.grade || []) : (r.battle || []);
     const battle = RK.tab === 'battle';
     $('#rkHead').innerHTML = battle ? `<div class="rkHeadCover" style="${box(312, 252, 1000, 302)}"></div><div class="rkc" style="${box(312, 252, 1000, 302)}">반</div>
-      <div class="rkHeadCover" style="${box(1012, 252, 1284, 302)}"></div><div class="rkc" style="${box(1012, 252, 1284, 302)}">평균 점수</div>` : '';
+      <div class="rkHeadCover" style="${box(1012, 252, 1284, 302)}"></div><div class="rkc" style="${box(1012, 252, 1284, 302)}">평균 점수</div>` : RK.by !== 'points' ? `<div class="rkHeadCover" style="${box(1012, 252, 1284, 302)}"></div><div class="rkc" style="${box(1012, 252, 1284, 302)};font-size:28px">${RB[1]}</div>` : '';
     const per = 6, pages = Math.max(1, Math.ceil(rows.length / per));
     RK.page = Math.min(RK.page, pages - 1);
     const ys = [[318, 370], [386, 438], [454, 506], [521, 571], [583, 631], [641, 689]];
@@ -205,7 +214,7 @@
       const medal = x.rank <= 3 ? ['🥇', '🥈', '🥉'][x.rank - 1] : x.rank;
       const name = battle ? `${esc(x.name)} <span class="tt">(${x.players}명 참여)</span>` : `${esc(x.name)}${RK.tab === 'grade' ? ` <span class="tt">${esc(x.cls)}</span>` : ''}${(x.titles || []).map(t => `<span class="tt">${t.icon}</span>`).join('')}`;
       return `<div class="rkc ${me ? 'me' : ''}" style="${box(132, y0, 302, y1)}">${medal}</div><div class="rkc l ${me ? 'me' : ''}" style="${box(310, y0, 1000, y1)}">${name}</div>
-        <div class="rkc y" style="${box(1010, y0, 1284, y1)}">${battle ? x.avgPoints : x.points}</div><div class="rkc" style="${box(1294, y0, 1540, y1)}">${x.acc}%</div>`;
+        <div class="rkc y" style="${box(1010, y0, 1284, y1)}">${battle ? x.avgPoints : RB[2](x)}</div><div class="rkc" style="${box(1294, y0, 1540, y1)}">${x.acc}%</div>`;
     }).join('') || `<div class="rkc" style="${box(132, 318, 1540, 370)}">${battle ? '같은 학년 반이 두 개 이상이면 반 대항전이 열려요' : '아직 기록이 없어요'}</div>`;
     const m = r.me;
     $('#rkMine').textContent = m ? `우리 반 ${m.cls}등 / ${m.clsOf}명 · ${m.points}점 · 정답률 ${m.acc}%${m.grade ? ` · 학년 ${m.grade}등` : ''}${m.titles && m.titles.length ? ' · ' + m.titles.map(t => t.icon + t.label).join(' ') : ''}` : '첫 경기를 하면 기록이 생겨요';

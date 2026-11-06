@@ -114,3 +114,4 @@ select.fld option{color:#0b1d3a}
 .navBar button:active{transform:scale(.94)}
 .navBar button:disabled{opacity:.35;cursor:default;box-shadow:none}
 .hot.dim{filter:brightness(.6) saturate(.6)}
+.trCls{font-size:24px!important;text-align:center;border-radius:14px;background:#0a2b4a;box-shadow:0 0 0 2px var(--cy)}

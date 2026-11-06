@@ -320,3 +320,5 @@
 .chGo:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default}
 .chGo.cancel{background:linear-gradient(#5b6b8f,#33405e);border-color:#9fb3d9;box-shadow:none}
 .chGo:not(:disabled):active{transform:scale(.96)}
+.rkBy{position:absolute;border:0;border-radius:16px;background:#0a2b4a;color:#fff;font-family:var(--fh);font-size:24px;text-align:center;box-shadow:0 0 0 3px var(--cy,#3fe0f5);cursor:pointer}
+.rkBy option{color:#0b1d3a}

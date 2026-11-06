@@ -337,31 +337,38 @@
   }
 
   /* ================= 랭킹 ================= */
-  const RS = $('#tRank'); const R = { tab: 'cls', by: 'points', page: 0, data: null, built: false };
+  const RS = $('#tRank'); const R = { tab: 'cls', by: 'points', page: 0, data: null, built: false, code: null };
+  const RANK_BY = [['points', '랭킹 점수', x => x.points], ['acc', '정답률', x => x.acc + '%'], ['chain', '최고 연쇄', x => x.bestChain], ['streak', '연속 정답', x => x.bestStreak], ['learn', '익힌 표현', x => x.mastered], ['chal', '랭킹전 승리', x => (x.challengeWins || 0) + (x.defenses || 0)]];
   function buildRank() {
     if (R.built) return; R.built = true;
     el(RS, 'div', '', null, '').id = 'trTabs';
     el(RS, 'div', '', null, '').id = 'trHead';
     el(RS, 'div', '', null, '').id = 'trRows';
+    const sel = el(RS, 'select', 'fld trCls', [1378, 140, 1562, 204]); sel.id = 'trCls'; sel.setAttribute('aria-label', '볼 반 고르기');
+    sel.onchange = () => { R.code = sel.value; R.tab = 'cls'; R.page = 0; loadRanking(); };
     el(RS, 'div', 'cover', [110, 733, 356, 800], '', 'background:#020b29;border-radius:16px');
     el(RS, 'div', 'bar', [114, 736, 1556, 798], '').id = 'trBar';
     hot(RS, [90, 830, 305, 905], () => { if (NAV.i > 0) navStep(-1); else goTab('dash'); }, '뒤로');
     hot(RS, [1368, 830, 1582, 905], () => goTab('dash'), '닫기');
   }
-  async function loadRanking() { buildRank(); const r = await emit('t:ranking', { code: cur, by: R.by }); if (r.err) return toast(r.err); R.data = r; renderRanking(); }
+  async function loadRanking() {
+    buildRank(); if (!R.code || !classes.some(c => c.code === R.code)) R.code = cur;
+    $('#trCls').innerHTML = classes.map(c => `<option value="${c.code}" ${c.code === R.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+    const r = await emit('t:ranking', { code: R.code, by: R.by }); if (r.err) return toast(r.err); R.data = r; renderRanking(); }
   function renderRanking() {
     const r = R.data; if (!r) return;
-    const tabs = [['cls', (view ? view.name : '우리 반'), [312, 137, 643, 207]], ['grade', `${r.gradeNo}학년 전체`, [668, 137, 1003, 207]], ['battle', '반 대항전', [1030, 137, 1360, 207]]];
+    const tabs = [['cls', ((classes.find(c => c.code === R.code) || view || {}).name || '우리 반'), [312, 137, 643, 207]], ['grade', `${r.gradeNo}학년 전체`, [668, 137, 1003, 207]], ['battle', '반 대항전', [1030, 137, 1360, 207]]];
     $('#trTabs').innerHTML = tabs.map(([k, l, b]) => `<button class="pill ${k === R.tab ? 'm' : 'c'}" data-t="${k}" style="${box([b[0] - 4, b[1] - 4, b[2] + 4, b[3] + 4])};font-size:30px">${esc(l)}</button>`).join('');
     $$('#trTabs button').forEach(b => b.onclick = () => { R.tab = b.dataset.t; R.page = 0; renderRanking(); });
     const battle = R.tab === 'battle';
     const rows = R.tab === 'cls' ? r.cls : R.tab === 'grade' ? r.grade : r.battle;
-    const head = battle ? ['반', '평균 점수', '정답률'] : ['별명', R.by === 'acc' ? '정답률' : R.by === 'chain' ? '최고 연쇄' : '랭킹 점수', R.by === 'points' ? '정답률' : '랭킹 점수'];
+    const RB = RANK_BY.find(x => x[0] === R.by) || RANK_BY[0];
+    const head = battle ? ['반', '평균 점수', '정답률'] : ['별명', RB[1], R.by === 'points' ? '정답률' : '랭킹 점수'];
     $('#trHead').innerHTML = [[312, 1000, head[0]], [1012, 1284, head[1]], [1296, 1540, head[2]]].map(([a, b, t]) => `<div class="cover" style="${box([a, 252, b, 302])};background:#00121c;border-radius:0"></div><div class="cell" style="${box([a, 252, b, 302])};font-size:30px">${t}</div>`).join('');
     const per = 6, pages = Math.max(1, Math.ceil(rows.length / per)); R.page = Math.min(R.page, pages - 1);
     const ys = [[318, 370], [386, 438], [454, 506], [521, 571], [583, 631], [641, 689]];
     const vis = rows.slice(R.page * per, R.page * per + per);
-    const v1 = x => battle ? x.avgPoints : R.by === 'acc' ? x.acc + '%' : R.by === 'chain' ? x.bestChain : x.points;
+    const v1 = x => battle ? x.avgPoints : RB[2](x);
     const v2 = x => battle ? x.acc + '%' : R.by === 'points' ? x.acc + '%' : x.points;
     $('#trRows').innerHTML = vis.map((x, i) => {
       const [y0, y1] = ys[i];
@@ -371,7 +378,7 @@
       return `<div class="cell" style="${box([132, y0, 302, y1])};font-size:30px">${medal}</div><div class="cell l" style="${box([316, y0, 1000, y1])};font-size:28px">${name}</div>
         <div class="cell y" style="${box([1010, y0, 1284, y1])};font-size:30px">${v1(x)}</div><div class="cell" style="${box([1294, y0, 1540, y1])};font-size:28px">${v2(x)}</div>`;
     }).join('') || `<div class="cell" style="${box([132, 318, 1540, 370])}">${battle ? '같은 학년 반이 두 개 이상이면 반 대항전이 열려요' : '아직 기록이 없어요'}</div>`;
-    $('#trBar').innerHTML = `${battle ? '<span class="lab" style="position:static">반 대항전 = 경기에 참여한 학생의 평균 랭킹 점수</span>' : `<span class="lab" style="position:static">정렬</span>${[['points', '랭킹 점수'], ['acc', '정답률'], ['chain', '최고 연쇄']].map(([k, l]) => `<button class="sbtn ${R.by === k ? 'm' : ''}" data-by="${k}">${l}</button>`).join('')}`}
+    $('#trBar').innerHTML = `${battle ? '<span class="lab" style="position:static">반 대항전 = 경기에 참여한 학생의 평균 랭킹 점수</span>' : `<span class="lab" style="position:static">보고 싶은 랭킹</span>${RANK_BY.map(([k, l]) => `<button class="sbtn ${R.by === k ? 'm' : ''}" data-by="${k}">${l}</button>`).join('')}`}
       <span style="flex:1"></span><button class="sbtn" id="trXls">엑셀로 받기</button>
       ${pages > 1 ? `<button class="sbtn" id="trP" ${R.page ? '' : 'disabled'}>◀</button><span>${R.page + 1}/${pages}</span><button class="sbtn" id="trN" ${R.page < pages - 1 ? '' : 'disabled'}>▶</button>` : ''}`;
     $$('#trBar [data-by]').forEach(b => b.onclick = () => { R.by = b.dataset.by; loadRanking(); });
