@@ -292,3 +292,31 @@
 .lvRow{position:absolute;display:flex;align-items:center;gap:12px;padding:8px 14px;border-radius:20px;background:#12062e;box-shadow:0 0 0 3px #ff2fd8}
 .lvRow .lvL{font-family:var(--fh);font-size:26px;color:#ffd6f6;white-space:nowrap;margin-right:6px}
 .lvRow .lvBtn{height:100%}
+
+
+/* 랭킹전 도전판 10줄 */
+.chCover{position:absolute;left:100px;top:306px;width:1464px;height:398px;background:#050c26}
+.crow{position:absolute;display:flex;align-items:center;border:2px solid #1fb6d6;border-radius:10px;background:#071538;font-family:var(--fh);font-size:27px;color:#eaf6ff;box-sizing:border-box}
+.crow .cc{display:flex;align-items:center;justify-content:center;height:100%;white-space:nowrap;overflow:hidden;border-right:2px solid rgba(31,182,214,.55)}
+.crow .cc:last-child{border-right:0}
+.crow .cc.l{justify-content:flex-start;padding-left:20px}
+.crow .cc.y{color:var(--ye)}
+.crow .cc.st{font-size:19px;color:#9ad8ff}.crow .cc.st.play{color:#ff7ee8}.crow .cc.st.off{color:#6f86a8}
+.crow .cc .chLb{height:30px;width:auto}
+.crow .crown{width:36px;height:30px}
+.crow .chBy{font-size:16px}
+.crow.me{border-color:#9ff7ff;background:#0b2a55;color:#9ff7ff}
+.crow.ok{cursor:pointer}
+.crow.ok:hover{background:#0d2350}
+.crow.sel{border-color:#ffe23a;background:#2c2a10;box-shadow:0 0 14px rgba(255,226,58,.7)}
+.crow.sent{border-color:#ff5cd6;box-shadow:0 0 12px rgba(255,92,214,.6)}
+.crow .act b{padding:2px 16px;border-radius:16px;font-size:20px;font-weight:400}
+.crow .act b.pick{border:2px solid #3fe0f5;color:#bff6ff}
+.crow .act b.on{background:#ffe23a;color:#1a1400}
+.crow .act b.sent{background:#ff5cd6;color:#1c0018}
+.crow .act img{height:28px}
+.crow .act span{color:#56688c}
+.chGo{position:absolute;border:3px solid #ffd1f6;border-radius:18px;background:linear-gradient(#ff6fdc,#c4249f);color:#fff;font-family:var(--fh);font-size:32px;-webkit-text-stroke:3px #4a0a3e;paint-order:stroke fill;box-shadow:0 0 18px rgba(255,92,214,.8);cursor:pointer}
+.chGo:disabled{filter:grayscale(.85) brightness(.55);box-shadow:none;cursor:default}
+.chGo.cancel{background:linear-gradient(#5b6b8f,#33405e);border-color:#9fb3d9;box-shadow:none}
+.chGo:not(:disabled):active{transform:scale(.96)}

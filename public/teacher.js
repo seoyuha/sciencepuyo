@@ -23,6 +23,7 @@
   }
   function hot(parent, b, fn, label) { const e = el(parent, 'button', 'hot', [b[0] - 3, b[1] - 3, b[2] + 3, b[3] + 3]); e.setAttribute('aria-label', label || ''); e.onclick = fn; Stage.initHot(parent.closest('.scr') || parent); return e; }
   function show(id) { $$('.scr').forEach(s => s.classList.toggle('on', s.id === id)); }
+  $('#navBack').onclick = () => navStep(-1); $('#navFwd').onclick = () => navStep(1);
   const cur$ = () => ($('.scr.on') || {}).id;
 
   /* ---------- 알림 카드 (운영 알림 그림) ---------- */
@@ -58,7 +59,7 @@
     const r = await emit('t:login', pw ? { pw } : { token: T.token });
     if (r.err) { if (pw) $('#loginErr').textContent = r.err; return false; }
     T.token = r.token; saveT(); UNITS = r.units; TYPES = r.types; classes = r.classes;
-    if (cur$() === 'tLogin') show('tDash');
+    if (cur$() === 'tLogin') { show('tDash'); NAV.list = ['dash']; NAV.i = 0; try { history.replaceState({ pp: 0 }, ''); } catch (e) {} navUI(); }
     await maybeRestore();
     const pick = classes.find(c => c.code === (cur || T.last)) || classes[0];
     if (pick) await openClass(pick.code); else renderDash();
@@ -137,8 +138,39 @@
     const go = [['dash', '경기 운영'], ['rank', '랭킹'], ['quest', '문제 관리'], ['rec', '기록'], ['cls', '반 설정']];
     xs.forEach((b, i) => hot(scr, [b[0], y[0], b[1], y[1]], () => goTab(go[i][0]), go[i][1]));
   }
-  function goTab(k) {
+  // 뒤로·앞으로 가기: 교사 화면 이동 기록 (기기·브라우저의 뒤로/앞으로 버튼과도 연결)
+  const NAV = { list: [], i: -1 };
+  function navTo(k, how) {
+    if (how === 'jump') { NAV.i = Math.max(0, Math.min(NAV.list.length - 1, NAV.i)); }
+    else if (!how) {
+      if (NAV.list[NAV.i] === k) return navUI();
+      NAV.list = NAV.list.slice(0, NAV.i + 1); NAV.list.push(k); NAV.i = NAV.list.length - 1;
+      try { history.pushState({ pp: NAV.i }, ''); } catch (e) {}
+    }
+    navUI();
+  }
+  function navUI() {
+    const on = cur$() !== 'tLogin';
+    $('#navBar').classList.toggle('on', on);
+    $('#navBack').disabled = NAV.i <= 0; $('#navFwd').disabled = NAV.i >= NAV.list.length - 1;
+  }
+  function navStep(d) {
+    const j = NAV.i + d; if (j < 0 || j >= NAV.list.length) return;
+    if (history.state && history.state.pp === NAV.i) return history.go(d); // 브라우저 기록과 함께 이동 → popstate에서 화면 전환
+    NAV.i = j; openScreen(NAV.list[j], true);
+  }
+  function openScreen(k, nav) {
+    if (k === 'tv') { openTV(true); } else { if (cur$() === 'tTV') clearInterval(V.timer); goTab(k, nav); }
+    if (nav) navUI();
+  }
+  window.addEventListener('popstate', e => {
+    const j = e.state && typeof e.state.pp === 'number' ? e.state.pp : 0;
+    if (j === NAV.i || !NAV.list.length) return;
+    NAV.i = Math.max(0, Math.min(NAV.list.length - 1, j)); openScreen(NAV.list[NAV.i], true);
+  });
+  function goTab(k, nav) {
     if (!cur && k !== 'dash') return toast('반을 먼저 만들어 주세요.');
+    if (!nav) navTo(k);
     if (k === 'dash') { show('tDash'); renderDash(true); }
     if (k === 'rank') { show('tRank'); loadRanking(); }
     if (k === 'quest') { show('tQuest'); loadQuestions(); }
@@ -159,11 +191,11 @@
     hot(DS, [48, 790, 298, 852], () => $('#fileBk').click(), '백업 불러오기');
     el(DS, 'div', '', null, '').id = 'dOpts';
     const more = el(DS, 'button', 'pill c', [770, 294, 962, 348], '세부 설정', 'font-size:22px'); more.onclick = detailModal;
-    hot(DS, [1016, 358, 1235, 418], async () => { if (!cur) return; const r = await emit('t:start', { code: cur }); if (r.err) toast(r.err); else toast('모두 자동 배정하고 시작했어요!'); }, '모두 시작');
+    hot(DS, [1016, 358, 1235, 418], async () => { if (!cur) return; const r = await emit('t:start', { code: cur }); if (r.err) toast(r.err); else toast('게임을 열었어요! 학생들이 자동으로 배정돼요'); }, '모두 시작');
     const pz = hot(DS, [1248, 358, 1428, 418], async () => { if (!cur) return; await emit('t:pause', { code: cur, on: !(view && view.paused) }); }, '일시정지'); pz.id = 'dPause';
     el(DS, 'img', 'at', [1244, 352, 1432, 424], null, 'display:none;pointer-events:none').id = 'dResume';
     $('#dResume').src = 'img/tb_resume.webp';
-    hot(DS, [1442, 358, 1622, 418], async () => { if (!cur) return; if (!await confirmBox('진행 중인 경기를 지금 점수로 끝내고 자동 배정을 멈춰요')) return; await emit('t:stop', { code: cur }); toast('경기를 모두 끝냈어요.'); }, '경기 종료');
+    hot(DS, [1442, 358, 1622, 418], async () => { if (!cur) return; if (!await confirmBox('진행 중인 경기를 지금 점수로 끝내고 게임을 닫아요. 학생들은 더 이상 할 수 없어요.')) return; await emit('t:stop', { code: cur }); toast('게임을 닫았어요. 학생들은 더 할 수 없어요.'); }, '경기 종료');
     el(DS, 'div', 'stuSum', [1178, 444, 1618, 478]).id = 'dSum';
     el(DS, 'div', 'stuBox', [1020, 486, 1618, 624]).id = 'dStu';
     el(DS, 'div', 'lab', [620, 674, 1000, 718], '', 'font-size:20px').id = 'dLiveCnt';
@@ -189,7 +221,9 @@
     const v = view;
     if (!v) { $('#dTitle').textContent = '왼쪽에서 새 반을 만들어 주세요'; $('#dCode').textContent = ''; return; }
     const s = v.settings;
-    $('#dTitle').innerHTML = `${esc(v.name)} ${s.easy ? '<span style="font-size:18px;margin-left:10px;color:#2dff9a">🐣 쉬운 모드</span>' : ''}<span style="font-size:22px;margin-left:14px;color:${v.running ? (v.paused ? '#ffe23a' : '#2dff9a') : '#9ad8ff'}">${v.running ? (v.paused ? '⏸ 일시정지' : s.challenge ? '⚔ 랭킹전 진행 중 · 학생이 도전 상대를 골라요' : '● 진행 중 · 새로 온 학생도 자동 배정') : s.challenge ? '랭킹전 준비 · 모두 시작을 누르세요' : '대기 중 · 모두 시작을 누르세요'}</span>`;
+    $('#dTitle').innerHTML = `${esc(v.name)} ${s.easy ? '<span style="font-size:18px;margin-left:10px;color:#2dff9a">🐣 쉬운 모드</span>' : ''}<span style="font-size:22px;margin-left:14px;color:${v.running ? (v.paused ? '#ffe23a' : '#2dff9a') : '#9ad8ff'}">${v.running ? (v.paused ? '⏸ 일시정지' : s.challenge ? '⚔ 랭킹전 진행 중 · 학생이 도전 상대를 골라요' : '● 게임 열림 · 새로 온 학생도 자동 배정') : v.closed ? '■ 게임 종료 · 학생은 더 할 수 없어요' : s.challenge ? '랭킹전 준비 · 모두 시작을 누르면 열려요' : '○ 게임 닫힘 · 모두 시작을 누르면 열려요'}</span>`;
+    $$('#tDash [aria-label="일시정지"], #tDash [aria-label="경기 종료"]').forEach(b => b.classList.toggle('off', !v.running));
+    const sb = $('#tDash [aria-label="모두 시작"]'); if (sb) sb.classList.toggle('dim', !!v.running);
     $('#dCode').textContent = v.code;
     if (full || $('#dQR').dataset.code !== v.code) {
       $('#dQR').dataset.code = v.code; $('#dQR').innerHTML = '';
@@ -311,7 +345,7 @@
     el(RS, 'div', '', null, '').id = 'trRows';
     el(RS, 'div', 'cover', [110, 733, 356, 800], '', 'background:#020b29;border-radius:16px');
     el(RS, 'div', 'bar', [114, 736, 1556, 798], '').id = 'trBar';
-    hot(RS, [90, 830, 305, 905], () => goTab('dash'), '뒤로');
+    hot(RS, [90, 830, 305, 905], () => { if (NAV.i > 0) navStep(-1); else goTab('dash'); }, '뒤로');
     hot(RS, [1368, 830, 1582, 905], () => goTab('dash'), '닫기');
   }
   async function loadRanking() { buildRank(); const r = await emit('t:ranking', { code: cur, by: R.by }); if (r.err) return toast(r.err); R.data = r; renderRanking(); }
@@ -523,9 +557,9 @@
     el(TV, 'img', 'at', [392, 822, 658, 912], null, 'pointer-events:none').id = 'tvAutoOn'; $('#tvAutoOn').src = 'img/tb_auto_on.webp';
     hot(TV, [710, 830, 962, 904], () => { V.page++; V.auto = false; renderTV(); }, '다음 경기');
     hot(TV, [1020, 830, 1272, 904], () => { const d = document.documentElement; if (document.fullscreenElement) document.exitFullscreen(); else if (d.requestFullscreen) d.requestFullscreen(); }, '전체 화면');
-    hot(TV, [1330, 830, 1584, 904], () => { clearInterval(V.timer); show('tDash'); renderDash(true); }, '닫기');
+    hot(TV, [1330, 830, 1584, 904], () => { clearInterval(V.timer); goTab('dash'); }, '닫기');
   }
-  function openTV() { buildTV(); show('tTV'); V.page = 0; V.step = 0; tvRank(); clearInterval(V.timer); V.timer = setInterval(() => { if (cur$() !== 'tTV') return clearInterval(V.timer); tvRank(); if (V.auto) { V.page++; } renderTV(); }, 10000); renderTV(); }
+  function openTV(nav) { if (!nav) navTo('tv'); buildTV(); show('tTV'); V.page = 0; V.step = 0; tvRank(); clearInterval(V.timer); V.timer = setInterval(() => { if (cur$() !== 'tTV') return clearInterval(V.timer); tvRank(); if (V.auto) { V.page++; } renderTV(); }, 10000); renderTV(); }
   async function tvRank() {
     const r = await emit('t:ranking', { code: cur, by: 'points' }); if (r.err) return;
     const scopes = ['cls', 'grade', 'battle'].filter(s => s !== 'battle' || r.battle.length >= 2).filter(s => s !== 'grade' || r.grade.length > r.cls.length);

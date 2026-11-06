@@ -169,10 +169,13 @@
     $('#lbUnits').textContent = unitsLabel(ME.units); $('#lbUnits').style.fontSize = $('#lbUnits').textContent.length > 12 ? '22px' : '28px';
     $('#lbTime').textContent = ME.matchMin ? `${ME.matchMin}분 경기` : '데스매치 (끝까지)';
     const run = !!ME.running, rk = !!ME.rankMode;
-    $('#lbMsgCover').style.display = run || rk ? '' : 'none'; $('#lbMsg').style.display = run || rk ? '' : 'none';
-    if (rk) $('#lbMsg').textContent = '⚔️ 랭킹전! 「우리 반 랭킹」을 눌러 도전하세요';
+    const closed = !run && !!ME.closed;
+    $('#lbMsgCover').style.display = run || rk || closed ? '' : 'none'; $('#lbMsg').style.display = run || rk || closed ? '' : 'none';
+    if (closed) $('#lbMsg').textContent = '게임이 끝났어요. 수고했어요! 👏';
+    else if (rk && !run) $('#lbMsg').textContent = '⚔️ 랭킹전 준비 중 · 선생님이 시작하면 도전할 수 있어요';
+    else if (rk) $('#lbMsg').textContent = '⚔️ 랭킹전! 「우리 반 랭킹」을 눌러 도전하세요';
     else if (run) $('#lbMsg').textContent = ME.mode === 1 ? (ME.level ? 'AI 친구와 대결을 준비하고 있어요!' : '👆 난이도를 누르면 바로 대결이 시작돼요!') : '상대를 찾고 있어요… 곧 대결이 시작돼요!';
-    if (ME.mode === 1 && !run && !rk) { $('#lbMsgCover').style.display = ''; $('#lbMsg').style.display = ''; $('#lbMsg').textContent = ME.level ? `${lvName(ME.level)}으로 골랐어요 · 선생님이 시작하면 대결해요` : '👆 먼저 난이도를 골라 두세요'; }
+    if (ME.mode === 1 && !run && !rk && !closed) { $('#lbMsgCover').style.display = ''; $('#lbMsg').style.display = ''; $('#lbMsg').textContent = ME.level ? `${lvName(ME.level)}으로 골랐어요 · 선생님이 시작하면 대결해요` : '👆 먼저 난이도를 골라 두세요'; }
   }
   $('#lbHow').onclick = () => openHow('sLobby');
   $('#lbRank').onclick = () => ME && ME.rankMode ? openChal() : openRanking('sLobby');
@@ -676,7 +679,7 @@
     const run = ME && ME.running;
     const rk = run && ME.rankMode;
     $('#rBarCover').style.display = run && !rk ? 'none' : ''; $('#rBar').style.display = run && !rk ? 'none' : '';
-    $('#rBar').textContent = rk ? (ME.myChallenge ? `${ME.myChallenge.name}에게 도전 신청 중!` : '랭킹전! 랭킹에서 도전할 친구를 고르세요') : '선생님이 시작하면 대결이 열려요';
+    $('#rBar').textContent = rk ? (ME.myChallenge ? `${ME.myChallenge.name}에게 도전 신청 중!` : '랭킹전! 랭킹에서 도전할 친구를 고르세요') : (ME.closed ? '게임이 끝났어요. 수고했어요!' : '선생님이 시작하면 대결이 열려요');
     $('#rSec').style.display = run ? '' : 'none';
     const left = Math.max(0, 10 - Math.floor((Date.now() - resAt) / 1000)); const auto = ME.rankMode ? (ME.autoAt ? Math.max(0, Math.ceil((ME.autoAt - Date.now()) / 1000)) : null) : null;
     $('#rSec').textContent = ME.rankMode ? (ME.myChallenge ? '상대가 경기를 마치면 바로 시작해요' : auto != null ? `${auto}초 안에 고르지 않으면 자동으로 상대가 정해져요` : '') : left ? `${left}초 안에 다음 상대와 자동으로 붙어요` : '곧 시작해요!';
@@ -687,55 +690,71 @@
   $('#rLobby').onclick = async () => { await emit('ready'); resultShown = false; G.matchId = null; renderLobby(); show('sLobby'); };
 
   /* ---------- 랭킹전 ---------- */
-  const CHL = { start: null, from: 'sLobby' };
+  const CHL = { start: null, from: 'sLobby', pick: null };
   function stCell(x, st, mine, bx) {
     const lb = !x.online ? null : x.status === 'playing' ? ['lb_play', '경기 중'] : mine && mine.target === x.id ? ['lb_wait', '도전 대기 중'] : x.by.length ? ['lb_got', '도전 받음'] : null;
     return lb ? `<div class="chSt" style="${bx}"><img class="chLb" src="img/${lb[0]}.webp" alt="${lb[1]}"></div>` : `<div class="chSt ${st[1]}" style="${bx}">${st[0]}</div>`;
   }
   function openChal() { CHL.start = null; CHL.from = cur(); renderChal(); show('sChal'); }
-  const CY = [[316, 373], [384, 440], [450, 507], [517, 571], [579, 631], [640, 690]];
+  // 랭킹전 도전판: 10명씩 보여 주고, 친구를 눌러 고른 뒤 「도전 시작!」
+  const CROW = i => [314 + i * 38.6, 314 + i * 38.6 + 34];
   function renderChal() {
     if (!ME || !ME.ladder) return;
-    const L = ME.ladder, me = L.find(x => x.id === ME.id), myPos = me ? me.pos : L.length, per = 6;
-    if (CHL.start == null) CHL.start = Math.max(0, Math.min(myPos - per, L.length - per)); // 처음엔 내 위 5명 + 나
+    const L = ME.ladder, me = L.find(x => x.id === ME.id), myPos = me ? me.pos : L.length + 1, per = 10;
+    if (CHL.start == null) CHL.start = 0; // 처음엔 1~10위
     CHL.start = Math.max(0, Math.min(CHL.start, Math.max(0, L.length - per)));
-    const vis = L.slice(CHL.start, CHL.start + per), mine = ME.myChallenge;
+    const mine = ME.myChallenge;
+    const can = x => x.id !== ME.id && x.pos < myPos && x.online;
+    if (CHL.pick && !L.some(x => x.id === CHL.pick && can(x))) CHL.pick = null;
+    const vis = L.slice(CHL.start, CHL.start + per);
     const STT = { playing: ['경기 중', 'play'], waiting: ['대기 중', ''], result: ['결과 보는 중', ''], lobby: ['대기실', ''] };
     const rowsHtml = vis.map((x, i) => {
-      const [y0, y1] = CY[i]; const isMe = x.id === ME.id;
+      const [y0, y1] = CROW(i); const isMe = x.id === ME.id, ok = can(x), sel = CHL.pick === x.id, sent = mine && mine.target === x.id;
       const st = !x.online ? ['나감', 'off'] : STT[x.status] || ['', ''];
-      let btn;
-      const bb = box(1300, y0 + 3, 1528, y1 - 3);
-      if (isMe) btn = `<div class="rkc me" style="${box(1290, y0, 1540, y1)}">나</div>`;
-      else if (x.pos < myPos && x.online) btn = mine && mine.target === x.id ? `<button class="chBtn sent" data-cancel="1" style="${bb}" aria-label="신청 취소"></button>`
-        : x.status === 'playing' ? `<button class="chBtn" data-t="${x.id}" style="${bb};background-image:url(img/rb_busy.webp)" aria-label="도전 (경기 중)"></button>` : `<button class="chBtn go" data-t="${x.id}" style="${bb}" aria-label="도전"></button>`;
-      else btn = x.pos > myPos ? `<div class="chImg lock" style="${bb}"></div>` : `<div class="chImg busy" style="${bb};opacity:.6"></div>`;
+      const act = isMe ? '<b>나</b>' : sent ? '<b class="sent">신청 중</b>' : ok ? (sel ? '<b class="on">✔ 선택</b>' : '<b class="pick">고르기</b>') : x.pos > myPos ? '<img src="img/ri_lock.webp" alt="잠김">' : '<span>—</span>';
       const rank = x.pos === 1 ? `<img class="crown" src="img/ri_crown.webp" alt="1위">` : x.pos <= 3 ? ['', '🥈', '🥉'][x.pos - 1] : x.pos;
-      return `<div class="rkc ${isMe ? 'me' : ''}" style="${box(130, y0, 280, y1)}">${rank}</div>
-        <div class="rkc l ${isMe ? 'me' : ''}" style="${box(286, y0, 850, y1)}">${esc(x.name)}${x.by.length ? `<span class="chBy">⚔ ${esc(x.by.join(', '))}</span>` : ''}</div>
-        <div class="rkc y" style="${box(856, y0, 1076, y1)}">${x.points}</div>
-        ${stCell(x, st, mine, box(1082, y0 + 2, 1284, y1 - 2))}${btn}`;
+      return `<div class="crow ${isMe ? 'me' : ''} ${ok ? 'ok' : ''} ${sel ? 'sel' : ''} ${sent ? 'sent' : ''}" ${ok ? `data-p="${x.id}" role="button" aria-label="${esc(x.name)} 고르기"` : ''} style="${box(104, y0, 1560, y1)}">
+        <div class="cc" style="width:176px">${rank}</div>
+        <div class="cc l" style="width:572px">${esc(x.name)}${x.by.length ? `<span class="chBy">⚔ ${esc(x.by.join(', '))}</span>` : ''}</div>
+        <div class="cc y" style="width:226px">${x.points}</div>
+        <div class="cc st ${st[1]}" style="width:208px">${stLbl(x, st, mine)}</div>
+        <div class="cc act" style="flex:1">${act}</div></div>`;
     }).join('');
-    const changed = $('#chRows').dataset.h !== rowsHtml;
-    if (changed) {
-      $('#chRows').dataset.h = rowsHtml; $('#chRows').innerHTML = rowsHtml;
-      $$('#chRows [data-t]').forEach(b => b.onclick = async () => { const r = await emit('challenge', { target: b.dataset.t }); if (r.err) toast(r.err); else { SFX.star(); toast('도전 신청! 친구가 기다리는 중이면 바로 시작해요'); } });
-      $$('#chRows [data-cancel]').forEach(b => b.onclick = async () => { await emit('cancelChallenge'); toast('도전을 취소했어요'); });
+    if ($('#chRows').dataset.h !== rowsHtml) {
+      $('#chRows').dataset.h = rowsHtml; $('#chRows').innerHTML = `<div class="chCover"></div>${rowsHtml}`;
+      $$('#chRows [data-p]').forEach(r => r.onclick = () => { CHL.pick = CHL.pick === r.dataset.p ? null : r.dataset.p; SFX.tap && SFX.tap(); renderChal(); });
     }
-    $('#chMine').textContent = `${myPos}위 / ${L.length}명 · ${me ? me.points : 0}점`;
+    $('#chMine').textContent = `${me ? me.pos : '-'}위 / ${L.length}명 · ${me ? me.points : 0}점`;
     const more = L.length > per;
     $('#chPager').innerHTML = more ? `<button id="chP" ${CHL.start ? '' : 'disabled'} aria-label="위로"></button><span>${CHL.start + 1}~${Math.min(L.length, CHL.start + per)}위</span><button class="dn" id="chN" ${CHL.start + per < L.length ? '' : 'disabled'} aria-label="아래로"></button>` : '';
     if (more) { $('#chP').onclick = () => { CHL.start = Math.max(0, CHL.start - per); renderChal(); }; $('#chN').onclick = () => { CHL.start += per; renderChal(); }; }
+    // 도전 시작 버튼
+    const go = $('#chGo');
+    if (mine) { go.textContent = '도전 취소'; go.className = 'chGo cancel'; go.disabled = false; }
+    else { go.textContent = '⚔ 도전 시작!'; go.className = 'chGo'; go.disabled = !CHL.pick || !ME.running; }
+    go.style.display = myPos === 1 && !mine ? 'none' : '';
     chalText();
   }
+  function stLbl(x, st, mine) {
+    const lb = !x.online ? null : x.status === 'playing' ? ['lb_play', '경기 중'] : mine && mine.target === x.id ? ['lb_wait', '도전 대기 중'] : x.by.length ? ['lb_got', '도전 받음'] : null;
+    return lb ? `<img class="chLb" src="img/${lb[0]}.webp" alt="${lb[1]}">` : st[0];
+  }
+  $('#chGo').onclick = async () => {
+    if (ME.myChallenge) { await emit('cancelChallenge'); toast('도전을 취소했어요'); return; }
+    if (!CHL.pick) return toast('먼저 도전할 친구를 눌러 고르세요');
+    const r = await emit('challenge', { target: CHL.pick });
+    if (r.err) toast(r.err); else { SFX.star(); CHL.pick = null; toast('도전 신청! 친구가 기다리는 중이면 바로 시작해요'); }
+  };
   function chalText() {
     if (!ME || !ME.ladder) return;
     const me = ME.ladder.find(x => x.id === ME.id), myPos = me ? me.pos : 99, mine = ME.myChallenge;
     const auto = ME.autoAt ? Math.max(0, Math.ceil((ME.autoAt - Date.now()) / 1000)) : null;
     $('#chTime').textContent = !ME.running ? '선생님이 모두 시작을 누르면 도전할 수 있어요'
-      : auto != null ? `${auto}초 안에 고르지 않으면 자동으로 상대가 정해져요` : '도전 상대를 고르세요';
+      : auto != null ? `${auto}초 안에 고르지 않으면 자동으로 상대가 정해져요` : '친구를 눌러 고르고 「도전 시작!」을 누르세요';
     const incoming = me && me.by.length ? `⚔ ${me.by.join(', ')}이(가) 나에게 도전!` : '';
+    const picked = CHL.pick && ME.ladder.find(x => x.id === CHL.pick);
     $('#chState').textContent = mine ? `${mine.name}에게 도전 신청 · ${!ME.running ? '시작을 기다려요' : mine.status === 'playing' ? '경기가 끝나면 시작' : '곧 시작!'}`
+      : picked ? `${picked.pos}위 ${picked.name} 선택 · 도전 시작!을 누르세요`
       : incoming || (myPos === 1 ? '1위! 도전자를 기다려요' : '나보다 높은 순위만 도전할 수 있어요');
   }
   setInterval(() => { if (cur() === 'sChal') chalText(); }, 1000);
